@@ -35,13 +35,28 @@ if (isLocal) {
 	let normalizedPath = path
 		.normalize(path.join("../../", basePath, src))
 		.replace(/\\/g, "/");
+
+	// 调试信息
+	console.log("Debug - basePath:", basePath);
+	console.log("Debug - src:", src);
+	console.log("Debug - normalizedPath:", normalizedPath);
+	console.log("Debug - available files:", Object.keys(files));
+
 	const file = files[normalizedPath];
 	if (!file) {
 		console.error(
 			`\n[ERROR] Image file not found: ${normalizedPath.replace("../../", "src/")}`,
 		);
+		// 尝试其他可能的路径
+		const alternativePath = `../../assets/images/${src.split("/").pop()}`;
+		console.log("Debug - trying alternative path:", alternativePath);
+		const altFile = files[alternativePath];
+		if (altFile) {
+			img = await altFile();
+		}
+	} else {
+		img = await file();
 	}
-	img = await file();
 }
 
 const imageClass = "w-full h-full object-cover";
