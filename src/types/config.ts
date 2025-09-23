@@ -36,6 +36,17 @@ export type SiteConfig = {
 	};
 
 	favicon: Favicon[];
+
+	// Optional analytics configuration
+	analytics?: {
+		// Google Analytics G-XXXX ID
+		gaId?: string;
+		// Umami analytics configuration
+		umami?: {
+			websiteId: string; // The Umami website UUID
+			src?: string; // Optional script src, default to public Umami cloud
+		};
+	};
 };
 
 export type Favicon = {

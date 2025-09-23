@@ -37,6 +37,17 @@ export const siteConfig: SiteConfig = {
 			//   sizes: '32x32',              // （可选）网站图标的尺寸，仅在您有不同尺寸的图标时设置
 		},
 	],
+	// Analytics configuration (fill in your IDs to enable)
+	analytics: {
+		// Google Analytics: 填写您的 GA4 ID，格式 G-XXXX
+		gaId: "G-HKXGFMG0SD",
+		// Umami: 设置您的 websiteId（UUID），以及可选的脚本地址
+		umami: {
+			websiteId: "080b7a8a-bc05-4651-9def-9006601aae3d",
+			// 如使用自建 Umami，这里可改为 https://umami.your-domain.com/script.js
+			src: "https://cloud.umami.is/script.js",
+		},
+	},
 };
 
 export const navBarConfig: NavBarConfig = {
