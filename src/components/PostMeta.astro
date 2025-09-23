@@ -80,12 +80,26 @@ const className = Astro.props.class;
         </div>
     </div>
 
-    <!-- views (Umami) -->
-    <div class="flex items-center">
-        <div class="meta-icon">
-            <Icon name="material-symbols:bar-chart-4-bars-rounded" class="text-xl"></Icon>
+    <!-- analytics (Umami) -->
+    <div class="flex items-center gap-4">
+        <div class="flex items-center">
+            <div class="meta-icon">
+                <Icon name="material-symbols:bar-chart-4-bars-rounded" class="text-xl"></Icon>
+            </div>
+            <div id="post-views" class="transition text-50 text-sm font-medium whitespace-nowrap">--</div>
         </div>
-        <div id="post-views" class="transition text-50 text-sm font-medium whitespace-nowrap">--</div>
+        <div class="flex items-center">
+            <div class="meta-icon">
+                <Icon name="material-symbols:group-rounded" class="text-xl"></Icon>
+            </div>
+            <div id="post-visitors" class="transition text-50 text-sm font-medium whitespace-nowrap">--</div>
+        </div>
+        <div class="flex items-center">
+            <div class="meta-icon">
+                <Icon name="material-symbols:devices-rounded" class="text-xl"></Icon>
+            </div>
+            <div id="post-devices" class="transition text-50 text-sm font-medium whitespace-nowrap">--</div>
+        </div>
     </div>
 </div>
 
@@ -97,12 +111,35 @@ const className = Astro.props.class;
     const res = await fetch(endpoint);
     if (!res.ok) return;
     const data = await res.json();
-    // Umami metrics API returns an array like [{ x: '/path', y: 123 }]
-    const total = Array.isArray(data?.data)
-      ? data.data.reduce((sum, item) => sum + (item?.y || 0), 0)
-      : (data?.value ?? data?.pageviews ?? 0);
-    const el = document.getElementById('post-views');
-    if (el) el.textContent = `${total} 次浏览`;
+
+    const pv = Number(data?.pageviews || 0);
+    const uv = Number(data?.visitors || 0);
+    const devices = Array.isArray(data?.devices) ? data.devices : [];
+
+    const viewsEl = document.getElementById('post-views');
+    if (viewsEl) viewsEl.textContent = `${pv} 次浏览`;
+
+    const visitorsEl = document.getElementById('post-visitors');
+    if (visitorsEl) visitorsEl.textContent = `${uv} 位访客`;
+
+    const deviceMap = new Map();
+    devices.forEach((d) => {
+      const key = (d?.x || '').toString().toLowerCase();
+      deviceMap.set(key, (deviceMap.get(key) || 0) + (Number(d?.y) || 0));
+    });
+    const parts = [];
+    if (deviceMap.size) {
+      const mobile = deviceMap.get('mobile') || deviceMap.get('phone') || 0;
+      const desktop = deviceMap.get('desktop') || deviceMap.get('pc') || 0;
+      const tablet = deviceMap.get('tablet') || 0;
+      const other = [...deviceMap.entries()].reduce((s, [k, v]) => s + (['mobile','phone','desktop','pc','tablet'].includes(k) ? 0 : v), 0);
+      if (desktop) parts.push(`桌面 ${desktop}`);
+      if (mobile) parts.push(`移动 ${mobile}`);
+      if (tablet) parts.push(`平板 ${tablet}`);
+      if (other) parts.push(`其他 ${other}`);
+    }
+    const devicesEl = document.getElementById('post-devices');
+    if (devicesEl) devicesEl.textContent = parts.length ? parts.join(' · ') : '设备 --';
   } catch (_) {}
 })();
 </script>

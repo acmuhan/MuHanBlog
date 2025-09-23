@@ -24,25 +24,47 @@ export const GET: APIRoute = async ({ url }) => {
 		});
 	}
 
-	// Fetch pageviews for the specific URL
-	// Umami v2 metrics endpoint supports filtering by url
-	const metricsEndpoint = `${apiBase}/api/websites/${websiteId}/metrics?type=pageviews&url=${encodeURIComponent(
+	// Date range: last 30 days by default
+	const endAt = Date.now();
+	const startAt = endAt - 30 * 24 * 60 * 60 * 1000;
+
+	// Endpoints
+	const pvEndpoint = `${apiBase}/api/websites/${websiteId}/metrics?type=pageviews&startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(
+		targetUrl,
+	)}`;
+	const statsEndpoint = `${apiBase}/api/websites/${websiteId}/stats?startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(
+		targetUrl,
+	)}`;
+	const devicesEndpoint = `${apiBase}/api/websites/${websiteId}/metrics?type=devices&startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(
 		targetUrl,
 	)}`;
 
 	try {
-		const resp = await fetch(metricsEndpoint, {
-			headers: {
-				Authorization: `Bearer ${token}`,
-			},
-		});
-		if (!resp.ok) {
+		const [pvRes, statsRes, devRes] = await Promise.all([
+			fetch(pvEndpoint, { headers: { Authorization: `Bearer ${token}` } }),
+			fetch(statsEndpoint, { headers: { Authorization: `Bearer ${token}` } }),
+			fetch(devicesEndpoint, { headers: { Authorization: `Bearer ${token}` } }),
+		]);
+		if (!pvRes.ok || !statsRes.ok || !devRes.ok) {
 			return new Response(JSON.stringify({ error: "Upstream error" }), {
 				status: 502,
 			});
 		}
-		const data = await resp.json();
-		return new Response(JSON.stringify(data), {
+		const [pvData, statsData, devicesData] = await Promise.all([
+			pvRes.json(),
+			statsRes.json(),
+			devRes.json(),
+		]);
+
+		const result = {
+			pageviews: Array.isArray(pvData?.data)
+				? pvData.data.reduce((sum: number, i: any) => sum + (i?.y || 0), 0)
+				: pvData?.value ?? 0,
+			visitors: statsData?.visitors ?? 0,
+			devices: devicesData?.data ?? [],
+		};
+
+		return new Response(JSON.stringify(result), {
 			status: 200,
 			headers: { "content-type": "application/json" },
 		});
