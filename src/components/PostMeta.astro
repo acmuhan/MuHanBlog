@@ -79,4 +79,30 @@ const className = Astro.props.class;
             {!(tags && tags.length > 0) && <div class="transition text-50 text-sm font-medium">{i18n(I18nKey.noTags)}</div>}
         </div>
     </div>
+
+    <!-- views (Umami) -->
+    <div class="flex items-center">
+        <div class="meta-icon">
+            <Icon name="material-symbols:bar-chart-4-bars-rounded" class="text-xl"></Icon>
+        </div>
+        <div id="post-views" class="transition text-50 text-sm font-medium whitespace-nowrap">--</div>
+    </div>
 </div>
+
+<script is:inline>
+// Fetch page views for current post using our proxy API
+(async () => {
+  try {
+    const endpoint = `/api/stats?url=${encodeURIComponent(window.location.pathname)}`;
+    const res = await fetch(endpoint);
+    if (!res.ok) return;
+    const data = await res.json();
+    // Umami metrics API returns an array like [{ x: '/path', y: 123 }]
+    const total = Array.isArray(data?.data)
+      ? data.data.reduce((sum, item) => sum + (item?.y || 0), 0)
+      : (data?.value ?? data?.pageviews ?? 0);
+    const el = document.getElementById('post-views');
+    if (el) el.textContent = `${total} 次浏览`;
+  } catch (_) {}
+})();
+</script>
