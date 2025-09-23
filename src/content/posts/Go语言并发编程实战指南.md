@@ -2,7 +2,7 @@
 title: Go语言并发编程实战指南
 published: 2025-09-17
 description: '深入探讨Go语言的并发编程模式，包括goroutine、channel、并发模式和性能优化技巧。'
-image: '../assets/images/OIP.png'
+image: ''
 tags: ['Go', '并发编程', 'Goroutine', 'Channel', '后端开发']
 category: '后端开发'
 draft: false 
