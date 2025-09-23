@@ -1,0 +1,17 @@
+---
+import { getSortedPosts } from "@utils/content-utils";
+import PostsPage from "../posts/[...slug].astro";
+
+export async function getStaticPaths() {
+	const blogEntries = await getSortedPosts();
+	return blogEntries.map((entry) => ({
+		params: { title: entry.data.title },
+		props: { entry },
+	}));
+}
+
+const { entry } = Astro.props;
+---
+<!-- Reuse the same post rendering by delegating to the existing slug page component -->
+<PostsPage entry={entry} />
+
