@@ -13,7 +13,12 @@ function joinUrl(...parts: string[]): string {
 }
 
 export function getPostUrlBySlug(slug: string): string {
-	return url(`/posts/${slug}/`);
+    return url(`/posts/${slug}/`);
+}
+
+export function getPostUrlByTitle(title: string): string {
+    const cleaned = title.trim();
+    return joinUrl("https://blog.muhan.wiki", "post", cleaned) + "/";
 }
 
 export function getTagUrl(tag: string): string {
