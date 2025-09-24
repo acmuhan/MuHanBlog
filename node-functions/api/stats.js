@@ -13,7 +13,10 @@ export default async function onRequest(context) {
 			});
 		}
 
-		const apiBase = process.env.UMAMI_API_URL || "https://api.umami.is";
+		// Prefer Umami Cloud v1 host for API-key auth; allow overriding legacy base via env
+		const legacyBase = (
+			process.env.UMAMI_API_URL || "https://cloud.umami.is"
+		).replace(/\/$/, "");
 		const websiteId = process.env.UMAMI_WEBSITE_ID;
 		const token = process.env.UMAMI_API_TOKEN;
 
@@ -37,39 +40,40 @@ export default async function onRequest(context) {
 		};
 
 		// Prefer v1 stats (Umami Cloud), fallback to legacy /api stats
-		const v1Stats = `${apiBase.replace(/\/$/, "")}/v1/websites/${websiteId}/stats?startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(
+		const v1Stats = `https://api.umami.is/v1/websites/${websiteId}/stats?startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(
 			targetUrl,
 		)}`;
-		const v2Stats = `${(process.env.UMAMI_API_URL || "https://cloud.umami.is").replace(/\/$/, "")}/api/websites/${websiteId}/stats?startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(
+		const v2Stats = `${legacyBase}/api/websites/${websiteId}/stats?startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(
 			targetUrl,
 		)}`;
 
 		// Debug logs to EdgeOne Pages Logs
 		console.log(
-			"[stats] using",
-			apiBase,
-			"websiteId",
+			"[stats] websiteId",
 			websiteId,
 			"tokenType",
 			isApiKey ? "apiKey" : "bearer",
 		);
 		console.log("[stats] url", targetUrl);
 
-		let res = await fetch(v1Stats, { headers: headersV1 });
-		if (!res.ok) {
-			console.log("[stats] v1 failed", res.status);
+		let res;
+		if (isApiKey) {
+			res = await fetch(v1Stats, { headers: headersV1 });
+			if (!res.ok) console.log("[stats] v1 failed", res.status);
+		} else {
 			res = await fetch(v2Stats, { headers: headersV2 });
-			if (!res.ok) {
-				const body = await res.text().catch(() => "");
-				return new Response(
-					JSON.stringify({
-						error: "Upstream error",
-						status: res.status,
-						body: body.slice(0, 200),
-					}),
-					{ status: 502, headers: { "content-type": "application/json" } },
-				);
-			}
+			if (!res.ok) console.log("[stats] v2 failed", res.status);
+		}
+		if (!res.ok) {
+			const body = await res.text().catch(() => "");
+			return new Response(
+				JSON.stringify({
+					error: "Upstream error",
+					status: res.status,
+					body: body.slice(0, 200),
+				}),
+				{ status: 502, headers: { "content-type": "application/json" } },
+			);
 		}
 
 		const raw = await res.text();
