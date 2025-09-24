@@ -12,7 +12,10 @@ export default async function onRequest(context) {
 		// Try to create URL object safely
 		let url;
 		try {
-			url = new URL(request.url);
+			// EdgeOne Pages provides relative URLs, need to construct full URL
+			const fullUrl = `https://${request.headers.get("host") || "blog.muhan.wiki"}${request.url}`;
+			console.log("[DEBUG] constructed fullUrl:", fullUrl);
+			url = new URL(fullUrl);
 		} catch (urlError) {
 			return new Response(
 				JSON.stringify({
