@@ -6,6 +6,10 @@ import type {
 	SiteConfig,
 } from "./types/config";
 import { LinkPreset } from "./types/config";
+import { BannerImageScanner } from "./utils/banner-scanner";
+
+// 自动扫描轮播图片
+const _bannerImages = BannerImageScanner.scanAllBanners();
 
 export const siteConfig: SiteConfig = {
 	title: "MuHan's Blog",
@@ -17,17 +21,27 @@ export const siteConfig: SiteConfig = {
 	},
 	banner: {
 		enable: true,
-		src: ["assets/images/demo-banner.png"], // 支持多张横幅图片
-		position: "center", // 等同于 object-position，只支持 'top'、'center'、'bottom'。默认为 'center'
+		// 自动扫描轮播图片
+		src: {
+			desktop:
+				_bannerImages.desktop.length > 0
+					? _bannerImages.desktop
+					: ["assets/images/demo-banner.png"],
+			mobile:
+				_bannerImages.mobile.length > 0
+					? _bannerImages.mobile
+					: ["assets/images/demo-banner.png"],
+		},
+		position: "center", // 等同于 object-position，仅支持 'top', 'center', 'bottom'。默认为 'center'
 		carousel: {
-			enable: true, // 启用轮播功能
-			interval: 5000, // 轮播间隔时间（毫秒）
-			autoplay: true, // 自动播放
+			enable:
+				_bannerImages.desktop.length > 1 || _bannerImages.mobile.length > 1, // 多张图片时启用轮播
+			interval: 1.5, // 轮播间隔时间（秒）
 		},
 		credit: {
-			enable: false, // 显示横幅图片的版权信息文本
-			text: "", // 要显示的版权信息文本
-			url: "", // （可选）指向原作品或艺术家页面的链接
+			enable: false, // 显示横幅图片来源文本
+			text: "", // 要显示的来源文本
+			url: "", // （可选）原始艺术品或艺术家页面的 URL 链接
 		},
 	},
 	toc: {

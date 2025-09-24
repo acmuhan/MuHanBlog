@@ -54,17 +54,17 @@ const mainPanelTop = siteConfig.banner.enable
 
 <!-- Banner -->
 {siteConfig.banner.enable && <div id="banner-wrapper" class={`absolute z-10 w-full transition duration-700 overflow-hidden`} style={`top: -${BANNER_HEIGHT_EXTEND}vh`}>
-    {Array.isArray(siteConfig.banner.src) && siteConfig.banner.src.length > 1 && siteConfig.banner.carousel?.enable ? (
+    {siteConfig.banner.src && typeof siteConfig.banner.src === 'object' && (siteConfig.banner.src.desktop.length > 1 || siteConfig.banner.src.mobile.length > 1) && siteConfig.banner.carousel?.enable ? (
         <BannerCarousel 
             client:load
             images={siteConfig.banner.src} 
-            interval={siteConfig.banner.carousel.interval}
-            autoplay={siteConfig.banner.carousel.autoplay}
+            interval={siteConfig.banner.carousel.interval * 1000}
+            autoplay={true}
             position={siteConfig.banner.position || 'center'}
         />
     ) : (
         <ImageWrapper id="banner" alt="Banner image of the blog" class:list={["object-cover h-full transition duration-700 opacity-0 scale-105"]}
-                      src={Array.isArray(siteConfig.banner.src) ? siteConfig.banner.src[0] : siteConfig.banner.src} position={siteConfig.banner.position}
+                      src={siteConfig.banner.src && typeof siteConfig.banner.src === 'object' ? siteConfig.banner.src.desktop[0] : siteConfig.banner.src} position={siteConfig.banner.position}
         >
         </ImageWrapper>
     )}

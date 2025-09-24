@@ -22,12 +22,14 @@ export type SiteConfig = {
 	};
 	banner: {
 		enable: boolean;
-		src: string | string[]; // 支持单张或多张图片
+		src: {
+			desktop: string[];
+			mobile: string[];
+		};
 		position?: "top" | "center" | "bottom";
 		carousel?: {
 			enable: boolean;
 			interval: number;
-			autoplay: boolean;
 		};
 		credit: {
 			enable: boolean;
@@ -52,7 +54,7 @@ export type SiteConfig = {
 			src?: string; // Optional script src, default to public Umami cloud
 		};
 	};
-	
+
 	// Optional music player configuration
 	musicPlayer?: {
 		enable: boolean;
@@ -62,7 +64,9 @@ export type SiteConfig = {
 		playlist: Array<{
 			title: string;
 			artist: string;
-			src: string;
+			src?: string; // direct playable url (optional)
+			neteaseId?: number; // NetEase song id (optional)
+			keywords?: string; // fallback search keywords (optional)
 			cover?: string;
 		}>;
 	};

@@ -1,13 +1,18 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { Icon } from 'astro-icon/components';
+import { onMount, onDestroy } from 'svelte';
+import Icon from '@iconify/svelte';
+import { fetchSongUrl, searchFirstSongId } from '@/utils/music-proxy';
 	
-	export let playlist: Array<{
-		title: string;
-		artist: string;
-		src: string;
-		cover?: string;
-	}> = [];
+export let playlist: Array<{
+    title: string;
+    artist: string;
+    src?: string;
+    neteaseId?: number;
+    keywords?: string;
+    cover?: string;
+}> = [];
+export let musicProxyBaseUrl: string = 'http://103.40.14.239:12237';
+export let musicU: string | undefined = undefined;
 	
 	export let autoplay: boolean = false;
 	export let showPlaylist: boolean = true;
@@ -52,10 +57,14 @@
 			isPlaying = false;
 		});
 		
-		// 加载第一首歌曲
-		if (playlist.length > 0) {
-			loadTrack(0);
-		}
+        // 加载第一首歌曲
+        if (playlist.length > 0) {
+            loadTrack(0).then(() => {
+                if (autoplay) {
+                    audio.play();
+                }
+            });
+        }
 	});
 	
 	onDestroy(() => {
@@ -65,13 +74,31 @@
 		}
 	});
 	
-	const loadTrack = (index: number) => {
-		if (playlist[index]) {
-			currentTrack = index;
-			audio.src = playlist[index].src;
-			audio.load();
-		}
-	};
+const resolvePlayableUrl = async (index: number): Promise<string | null> => {
+    const item = playlist[index];
+    if (!item) return null;
+    if (item.src) return item.src;
+    if (typeof item.neteaseId === 'number') {
+        return await fetchSongUrl(item.neteaseId, { baseUrl: musicProxyBaseUrl, musicU });
+    }
+    if (item.keywords && item.keywords.trim().length > 0) {
+        const id = await searchFirstSongId(item.keywords, { baseUrl: musicProxyBaseUrl, musicU });
+        if (typeof id === 'number') {
+            return await fetchSongUrl(id, { baseUrl: musicProxyBaseUrl, musicU });
+        }
+    }
+    return null;
+};
+
+const loadTrack = async (index: number) => {
+    if (!playlist[index]) return;
+    currentTrack = index;
+    const url = await resolvePlayableUrl(index);
+    if (url) {
+        audio.src = url;
+        audio.load();
+    }
+};
 	
 	const togglePlay = () => {
 		if (isPlaying) {
@@ -121,10 +148,9 @@
 		}
 	};
 	
-	const playTrack = (index: number) => {
-		loadTrack(index);
-		audio.play();
-	};
+const playTrack = (index: number) => {
+    loadTrack(index).then(() => audio.play());
+};
 	
 	const formatTime = (time: number) => {
 		const minutes = Math.floor(time / 60);
@@ -134,7 +160,7 @@
 </script>
 
 {#if playlist.length > 0}
-	<div class="fixed {position} z-50 m-4 transition-all duration-300" class:scale-110={isExpanded}>
+	<div class="fixed {position} z-50 m-4 transition-all duration-300 {isExpanded ? 'scale-110' : ''}">
 		<!-- 主播放器 -->
 		<div class="bg-white/90 dark:bg-gray-800/90 backdrop-blur-md rounded-2xl shadow-lg border border-white/20 dark:border-gray-700/20 overflow-hidden">
 			<!-- 当前播放信息 -->
@@ -260,9 +286,7 @@
 					<div class="text-sm font-medium text-gray-900 dark:text-white mb-2">播放列表</div>
 					{#each playlist as track, index}
 						<button 
-							class="w-full flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left"
-							class:bg-purple-100={index === currentTrack}
-							class:dark:bg-purple-900/30={index === currentTrack}
+							class="w-full flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-left {index === currentTrack ? 'bg-purple-100 dark:bg-purple-900/30' : ''}"
 							on:click={() => playTrack(index)}
 						>
 							<div class="w-8 h-8 rounded overflow-hidden flex-shrink-0">
