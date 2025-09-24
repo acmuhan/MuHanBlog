@@ -6,77 +6,17 @@ import type { APIRoute } from "astro";
 //  - UMAMI_WEBSITE_ID (UUID)
 //  - UMAMI_API_TOKEN (Bearer token)
 
-export const GET: APIRoute = async ({ url, request }) => {
-	// Debug logging
-	console.log("API Request URL:", url.toString());
-	console.log("Request URL:", request.url);
-	console.log("Search params:", Object.fromEntries(url.searchParams.entries()));
-
-	// Parse URL parameters manually from the request URL
-	const requestUrl = new URL(request.url);
-	console.log(
-		"Request URL search params:",
-		Object.fromEntries(requestUrl.searchParams.entries()),
-	);
-
-	// Try multiple ways to get the URL parameter
-	let targetUrl =
-		requestUrl.searchParams.get("url") || url.searchParams.get("url");
-
-	// If still not found, try parsing from the raw URL string
+export const GET: APIRoute = async ({ url }) => {
+	const targetUrl = url.searchParams.get("url");
 	if (!targetUrl) {
-		const urlMatch = request.url.match(/[?&]url=([^&]*)/);
-		if (urlMatch) {
-			targetUrl = decodeURIComponent(urlMatch[1]);
-		}
+		return new Response(JSON.stringify({ error: "Missing url parameter" }), {
+			status: 400,
+		});
 	}
 
-	// Additional debug: log the raw request URL
-	console.log("Raw request URL:", request.url);
-	console.log("URL match result:", request.url.match(/[?&]url=([^&]*)/));
-
-	// Try a different approach - parse from the full URL
-	if (!targetUrl) {
-		const fullUrl = new URL(request.url);
-		const urlParam = fullUrl.searchParams.get("url");
-		if (urlParam) {
-			targetUrl = urlParam;
-			console.log("Found URL param from full URL:", targetUrl);
-		}
-	}
-
-	console.log("Final targetUrl:", targetUrl);
-
-	// Environment variables debug
 	const apiBase = import.meta.env.UMAMI_API_URL || "https://cloud.umami.is";
 	const websiteId = import.meta.env.UMAMI_WEBSITE_ID;
 	const token = import.meta.env.UMAMI_API_TOKEN;
-
-	console.log("Environment variables:");
-	console.log("- UMAMI_API_URL:", apiBase);
-	console.log(
-		"- UMAMI_WEBSITE_ID:",
-		websiteId ? `${websiteId.substring(0, 8)}...` : "undefined",
-	);
-	console.log(
-		"- UMAMI_API_TOKEN:",
-		token ? `${token.substring(0, 8)}...` : "undefined",
-	);
-
-	if (!targetUrl) {
-		return new Response(
-			JSON.stringify({
-				error: "Missing url parameter",
-				debug: {
-					fullUrl: url.toString(),
-					searchParams: Object.fromEntries(url.searchParams.entries()),
-				},
-			}),
-			{
-				status: 400,
-			},
-		);
-	}
 
 	if (!websiteId || !token) {
 		return new Response(JSON.stringify({ error: "Server not configured" }), {
@@ -95,25 +35,21 @@ export const GET: APIRoute = async ({ url, request }) => {
 	const statsEndpoint = `${apiBase}/api/websites/${websiteId}/stats?startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(
 		targetUrl,
 	)}`;
-	const devicesEndpoint = `${apiBase}/api/websites/${websiteId}/metrics?type=devices&startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(
-		targetUrl,
-	)}`;
+	// No devices for now
 
 	try {
-		const [pvRes, statsRes, devRes] = await Promise.all([
+		const [pvRes, statsRes] = await Promise.all([
 			fetch(pvEndpoint, { headers: { Authorization: `Bearer ${token}` } }),
 			fetch(statsEndpoint, { headers: { Authorization: `Bearer ${token}` } }),
-			fetch(devicesEndpoint, { headers: { Authorization: `Bearer ${token}` } }),
 		]);
-		if (!pvRes.ok || !statsRes.ok || !devRes.ok) {
+		if (!pvRes.ok || !statsRes.ok) {
 			return new Response(JSON.stringify({ error: "Upstream error" }), {
 				status: 502,
 			});
 		}
-		const [pvData, statsData, devicesData] = await Promise.all([
+		const [pvData, statsData] = await Promise.all([
 			pvRes.json(),
 			statsRes.json(),
-			devRes.json(),
 		]);
 
 		const result = {
@@ -121,7 +57,6 @@ export const GET: APIRoute = async ({ url, request }) => {
 				? pvData.data.reduce((sum: number, i: any) => sum + (i?.y || 0), 0)
 				: (pvData?.value ?? 0),
 			visitors: statsData?.visitors ?? 0,
-			devices: devicesData?.data ?? [],
 		};
 
 		return new Response(JSON.stringify(result), {
