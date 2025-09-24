@@ -143,7 +143,11 @@ export default async function onRequest(context) {
 		const pageviews = toNumber(data?.pageviews);
 		const visitors = toNumber(data?.visitors);
 
-		const payload = { pageviews, visitors };
+		// If no real data from Umami, return 0 instead of mock data
+		const payload = {
+			pageviews: pageviews > 0 ? pageviews : 0,
+			visitors: visitors > 0 ? visitors : 0,
+		};
 		if (debug)
 			Object.assign(payload, {
 				mode,
@@ -151,6 +155,7 @@ export default async function onRequest(context) {
 				tokenType: isApiKey ? "apiKey" : "bearer",
 				url: targetUrl,
 				rawData: data,
+				apiUrl: mode === "v1" ? v1Stats : v2Stats,
 			});
 		return new Response(JSON.stringify(payload), {
 			status: 200,
