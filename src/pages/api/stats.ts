@@ -59,7 +59,7 @@ export const GET: APIRoute = async ({ url }) => {
 		const result = {
 			pageviews: Array.isArray(pvData?.data)
 				? pvData.data.reduce((sum: number, i: any) => sum + (i?.y || 0), 0)
-				: pvData?.value ?? 0,
+				: (pvData?.value ?? 0),
 			visitors: statsData?.visitors ?? 0,
 			devices: devicesData?.data ?? [],
 		};
