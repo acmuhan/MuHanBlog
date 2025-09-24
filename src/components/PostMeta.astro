@@ -68,14 +68,29 @@ const className = Astro.props.class;
             <Icon name="material-symbols:tag-rounded" class="text-xl"></Icon>
         </div>
         <div class="flex flex-row flex-nowrap items-center">
-            {(tags && tags.length > 0) && tags.map((tag, i) => (
-                <div class:list={[{"hidden": i == 0}, "mx-1.5 text-[var(--meta-divider)] text-sm"]}>/</div>
-                <a href={getTagUrl(tag)} aria-label={`View all posts with the ${tag.trim()} tag`}
-                   class="link-lg transition text-50 text-sm font-medium
-                                hover:text-[var(--primary)] dark:hover:text-[var(--primary)] whitespace-nowrap">
-                    {tag.trim()}
-                </a>
-            ))}
+            {(tags && tags.length > 0) && (
+                <>
+                    {tags.slice(0, 3).map((tag, i) => (
+                        <>
+                            <div class:list={[{"hidden": i == 0}, "mx-1.5 text-[var(--meta-divider)] text-sm"]}>/</div>
+                            <a href={getTagUrl(tag)} aria-label={`View all posts with the ${tag.trim()} tag`}
+                               class="link-lg transition text-50 text-sm font-medium
+                                            hover:text-[var(--primary)] dark:hover:text-[var(--primary)] whitespace-nowrap">
+                                {tag.trim()}
+                            </a>
+                        </>
+                    ))}
+                    {tags.length > 3 && (
+                        <>
+                            <div class="mx-1.5 text-[var(--meta-divider)] text-sm">/</div>
+                            <a href={getTagUrl(tags[3])}
+                               class="link-lg transition text-50 text-sm font-medium hover:text-[var(--primary)] dark:hover:text-[var(--primary)] whitespace-nowrap">
+                                +{tags.length - 3}
+                            </a>
+                        </>
+                    )}
+                </>
+            )}
             {!(tags && tags.length > 0) && <div class="transition text-50 text-sm font-medium">{i18n(I18nKey.noTags)}</div>}
         </div>
     </div>
@@ -94,12 +109,6 @@ const className = Astro.props.class;
             </div>
             <div id="post-visitors" class="transition text-50 text-sm font-medium whitespace-nowrap">--</div>
         </div>
-        <div class="flex items-center">
-            <div class="meta-icon">
-                <Icon name="material-symbols:devices-rounded" class="text-xl"></Icon>
-            </div>
-            <div id="post-devices" class="transition text-50 text-sm font-medium whitespace-nowrap">--</div>
-        </div>
     </div>
 </div>
 
@@ -114,7 +123,6 @@ const className = Astro.props.class;
 
     const pv = Number(data?.pageviews || 0);
     const uv = Number(data?.visitors || 0);
-    const devices = Array.isArray(data?.devices) ? data.devices : [];
 
     const viewsEl = document.getElementById('post-views');
     if (viewsEl) viewsEl.textContent = `${pv} 次浏览`;
@@ -122,24 +130,6 @@ const className = Astro.props.class;
     const visitorsEl = document.getElementById('post-visitors');
     if (visitorsEl) visitorsEl.textContent = `${uv} 位访客`;
 
-    const deviceMap = new Map();
-    devices.forEach((d) => {
-      const key = (d?.x || '').toString().toLowerCase();
-      deviceMap.set(key, (deviceMap.get(key) || 0) + (Number(d?.y) || 0));
-    });
-    const parts = [];
-    if (deviceMap.size) {
-      const mobile = deviceMap.get('mobile') || deviceMap.get('phone') || 0;
-      const desktop = deviceMap.get('desktop') || deviceMap.get('pc') || 0;
-      const tablet = deviceMap.get('tablet') || 0;
-      const other = [...deviceMap.entries()].reduce((s, [k, v]) => s + (['mobile','phone','desktop','pc','tablet'].includes(k) ? 0 : v), 0);
-      if (desktop) parts.push(`桌面 ${desktop}`);
-      if (mobile) parts.push(`移动 ${mobile}`);
-      if (tablet) parts.push(`平板 ${tablet}`);
-      if (other) parts.push(`其他 ${other}`);
-    }
-    const devicesEl = document.getElementById('post-devices');
-    if (devicesEl) devicesEl.textContent = parts.length ? parts.join(' · ') : '设备 --';
   } catch (_) {}
 })();
 </script>
