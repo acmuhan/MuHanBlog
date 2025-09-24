@@ -7,11 +7,26 @@ import type { APIRoute } from "astro";
 //  - UMAMI_API_TOKEN (Bearer token)
 
 export const GET: APIRoute = async ({ url }) => {
+	// Debug logging
+	console.log("API Request URL:", url.toString());
+	console.log("Search params:", Object.fromEntries(url.searchParams.entries()));
+
 	const targetUrl = url.searchParams.get("url");
+	console.log("Extracted targetUrl:", targetUrl);
+
 	if (!targetUrl) {
-		return new Response(JSON.stringify({ error: "Missing url parameter" }), {
-			status: 400,
-		});
+		return new Response(
+			JSON.stringify({
+				error: "Missing url parameter",
+				debug: {
+					fullUrl: url.toString(),
+					searchParams: Object.fromEntries(url.searchParams.entries()),
+				},
+			}),
+			{
+				status: 400,
+			},
+		);
 	}
 
 	const apiBase = import.meta.env.UMAMI_API_URL || "https://cloud.umami.is";
