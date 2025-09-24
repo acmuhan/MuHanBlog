@@ -49,10 +49,10 @@ export default async function onRequest(context) {
 		};
 
 		// Prefer v1 stats (Umami Cloud), fallback to legacy /api stats
-		const v1Stats = `https://api.umami.is/v1/websites/${websiteId}/stats?startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(
+		const v1Stats = `https://api.umami.is/v1/websites/${encodeURIComponent(websiteId)}/stats?startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(
 			targetUrl,
 		)}`;
-		const v2Stats = `${legacyBase}/api/websites/${websiteId}/stats?startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(
+		const v2Stats = `${legacyBase}/api/websites/${encodeURIComponent(websiteId)}/stats?startAt=${startAt}&endAt=${endAt}&url=${encodeURIComponent(
 			targetUrl,
 		)}`;
 
@@ -64,6 +64,8 @@ export default async function onRequest(context) {
 			isApiKey ? "apiKey" : "bearer",
 		);
 		console.log("[stats] url", targetUrl);
+		console.log("[stats] v1Stats", v1Stats);
+		console.log("[stats] v2Stats", v2Stats);
 
 		let mode = "v1";
 		let res;
