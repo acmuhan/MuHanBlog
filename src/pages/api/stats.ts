@@ -14,6 +14,22 @@ export const GET: APIRoute = async ({ url }) => {
 	const targetUrl = url.searchParams.get("url");
 	console.log("Extracted targetUrl:", targetUrl);
 
+	// Environment variables debug
+	const apiBase = import.meta.env.UMAMI_API_URL || "https://cloud.umami.is";
+	const websiteId = import.meta.env.UMAMI_WEBSITE_ID;
+	const token = import.meta.env.UMAMI_API_TOKEN;
+
+	console.log("Environment variables:");
+	console.log("- UMAMI_API_URL:", apiBase);
+	console.log(
+		"- UMAMI_WEBSITE_ID:",
+		websiteId ? `${websiteId.substring(0, 8)}...` : "undefined",
+	);
+	console.log(
+		"- UMAMI_API_TOKEN:",
+		token ? `${token.substring(0, 8)}...` : "undefined",
+	);
+
 	if (!targetUrl) {
 		return new Response(
 			JSON.stringify({
@@ -28,10 +44,6 @@ export const GET: APIRoute = async ({ url }) => {
 			},
 		);
 	}
-
-	const apiBase = import.meta.env.UMAMI_API_URL || "https://cloud.umami.is";
-	const websiteId = import.meta.env.UMAMI_WEBSITE_ID;
-	const token = import.meta.env.UMAMI_API_TOKEN;
 
 	if (!websiteId || !token) {
 		return new Response(JSON.stringify({ error: "Server not configured" }), {
