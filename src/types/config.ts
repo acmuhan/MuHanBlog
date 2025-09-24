@@ -22,15 +22,8 @@ export type SiteConfig = {
 	};
 	banner: {
 		enable: boolean;
-		src: {
-			desktop: string[];
-			mobile: string[];
-		};
+		src: string;
 		position?: "top" | "center" | "bottom";
-		carousel?: {
-			enable: boolean;
-			interval: number;
-		};
 		credit: {
 			enable: boolean;
 			text: string;
@@ -53,22 +46,6 @@ export type SiteConfig = {
 			websiteId: string; // The Umami website UUID
 			src?: string; // Optional script src, default to public Umami cloud
 		};
-	};
-
-	// Optional music player configuration
-	musicPlayer?: {
-		enable: boolean;
-		autoplay: boolean;
-		showPlaylist: boolean;
-		position: "bottom-left" | "bottom-right" | "top-left" | "top-right";
-		playlist: Array<{
-			title: string;
-			artist: string;
-			src?: string; // direct playable url (optional)
-			neteaseId?: number; // NetEase song id (optional)
-			keywords?: string; // fallback search keywords (optional)
-			cover?: string;
-		}>;
 	};
 };
 

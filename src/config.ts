@@ -6,10 +6,6 @@ import type {
 	SiteConfig,
 } from "./types/config";
 import { LinkPreset } from "./types/config";
-import { BannerImageScanner } from "./utils/banner-scanner";
-
-// 自动扫描轮播图片
-const _bannerImages = BannerImageScanner.scanAllBanners();
 
 export const siteConfig: SiteConfig = {
 	title: "MuHan's Blog",
@@ -21,27 +17,12 @@ export const siteConfig: SiteConfig = {
 	},
 	banner: {
 		enable: true,
-		// 自动扫描轮播图片
-		src: {
-			desktop:
-				_bannerImages.desktop.length > 0
-					? _bannerImages.desktop
-					: ["assets/images/demo-banner.png"],
-			mobile:
-				_bannerImages.mobile.length > 0
-					? _bannerImages.mobile
-					: ["assets/images/demo-banner.png"],
-		},
-		position: "center", // 等同于 object-position，仅支持 'top', 'center', 'bottom'。默认为 'center'
-		carousel: {
-			enable:
-				_bannerImages.desktop.length > 1 || _bannerImages.mobile.length > 1, // 多张图片时启用轮播
-			interval: 1.5, // 轮播间隔时间（秒）
-		},
+		src: "assets/images/demo-banner.png", // 相对于 /src 目录的路径。如果以 '/' 开头，则相对于 /public 目录
+		position: "center", // 等同于 object-position，只支持 'top'、'center'、'bottom'。默认为 'center'
 		credit: {
-			enable: false, // 显示横幅图片来源文本
-			text: "", // 要显示的来源文本
-			url: "", // （可选）原始艺术品或艺术家页面的 URL 链接
+			enable: false, // 显示横幅图片的版权信息文本
+			text: "", // 要显示的版权信息文本
+			url: "", // （可选）指向原作品或艺术家页面的链接
 		},
 	},
 	toc: {
@@ -66,32 +47,6 @@ export const siteConfig: SiteConfig = {
 			// 如使用自建 Umami，这里可改为 https://umami.your-domain.com/script.js
 			src: "https://cloud.umami.is/script.js",
 		},
-	},
-
-	// Music player configuration
-	musicPlayer: {
-		enable: true,
-		autoplay: false,
-		showPlaylist: true,
-		position: "bottom-right" as
-			| "bottom-left"
-			| "bottom-right"
-			| "top-left"
-			| "top-right",
-		playlist: [
-			{
-				title: "示例歌曲 1",
-				artist: "示例艺术家",
-				src: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav",
-				cover: "assets/images/demo-avatar.png",
-			},
-			{
-				title: "示例歌曲 2",
-				artist: "示例艺术家",
-				src: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav",
-				cover: "assets/images/demo-avatar.png",
-			},
-		],
 	},
 };
 
