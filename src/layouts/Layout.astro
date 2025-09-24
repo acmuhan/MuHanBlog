@@ -170,17 +170,32 @@ const bannerOffset =
 					data-website-id={siteConfig.analytics.umami.websiteId}
 					data-domains={Astro.url.host}
 					data-auto-track="true"
+					data-cache="true"
 				></script>
 				<script is:inline>
 					// Ensure pageview tracked on SPA navigations (Swup / Astro navigations)
 					const track = () => {
-						try { if (window.umami && typeof window.umami.trackView === 'function') { window.umami.trackView(location.pathname, document.referrer); } } catch {}
+						try { 
+							if (window.umami && typeof window.umami.trackView === 'function') { 
+								window.umami.trackView(location.pathname, document.referrer); 
+							} 
+						} catch (e) {
+							console.warn('Umami tracking error:', e);
+						}
 					};
+					
+					// Track initial page load
+					document.addEventListener('DOMContentLoaded', track);
+					
+					// Track SPA navigations
 					document.addEventListener('astro:page-load', track);
 					document.addEventListener('swup:contentReplaced', track);
+					
+					// Also track on window load as fallback
+					window.addEventListener('load', track);
 				</script>
 			</>
-        )}
+		)}
 
 	</head>
 	<body class=" min-h-screen transition " class:list={[{"lg:is-home": isHomePage, "enable-banner": enableBanner}]}

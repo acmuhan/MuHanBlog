@@ -101,7 +101,12 @@ export default defineConfig({
 			},
 		}),
 		svelte(),
-		sitemap(),
+		sitemap({
+			filter: (page) => !page.includes("404"),
+			changefreq: "weekly",
+			priority: 0.7,
+			lastmod: new Date(),
+		}),
 	],
 	markdown: {
 		remarkPlugins: [

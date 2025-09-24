@@ -57,7 +57,7 @@ const { remarkPluginFrontmatter } = await entry.render();
         </a>
 
         <!-- metadata -->
-        <PostMetadata published={published} updated={updated} tags={tags} category={category} hideTagsForMobile={true} hideUpdateDate={true} class="mb-4"></PostMetadata>
+        <PostMetadata published={published} updated={updated} tags={tags} category={category} hideTagsForMobile={true} hideUpdateDate={true} hideStats={true} class="mb-4"></PostMetadata>
 
         <!-- description -->
         <div class:list={["transition text-75 mb-3.5 pr-4", {"line-clamp-2 md:line-clamp-1": !description}]}>
@@ -72,6 +72,22 @@ const { remarkPluginFrontmatter } = await entry.render();
             <div>|</div>
             <div>
                 {remarkPluginFrontmatter.minutes} {" " + i18n(remarkPluginFrontmatter.minutes === 1 ? I18nKey.minuteCount : I18nKey.minutesCount)}
+            </div>
+        </div>
+
+        <!-- analytics (Umami) -->
+        <div class="flex items-center gap-4 mt-3">
+            <div class="flex items-center">
+                <div class="meta-icon">
+                    <Icon name="material-symbols:bar-chart-4-bars-rounded" class="text-xl"></Icon>
+                </div>
+                <div id={`post-views-${entry.slug}`} class="transition text-50 text-sm font-medium whitespace-nowrap">--</div>
+            </div>
+            <div class="flex items-center">
+                <div class="meta-icon">
+                    <Icon name="material-symbols:group-rounded" class="text-xl"></Icon>
+                </div>
+                <div id={`post-visitors-${entry.slug}`} class="transition text-50 text-sm font-medium whitespace-nowrap">--</div>
             </div>
         </div>
 
@@ -105,6 +121,27 @@ const { remarkPluginFrontmatter } = await entry.render();
     }
 </div>
 <div class="transition border-t-[1px] border-dashed mx-6 border-black/10 dark:border-white/[0.15] last:border-t-0 md:hidden"></div>
+
+<script is:inline define:vars={{ postUrl: url, postSlug: entry.slug }}>
+// Fetch page views for this post card
+(async () => {
+  try {
+    const endpoint = `/api/stats?url=${encodeURIComponent(postUrl)}`;
+    const res = await fetch(endpoint);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const pv = Number(data?.pageviews || 0);
+    const uv = Number(data?.visitors || 0);
+
+    const viewsEl = document.getElementById(`post-views-${postSlug}`);
+    if (viewsEl) viewsEl.textContent = `${pv} 次浏览`;
+
+    const visitorsEl = document.getElementById(`post-visitors-${postSlug}`);
+    if (visitorsEl) visitorsEl.textContent = `${uv} 位访客`;
+  } catch (_) {}
+})();
+</script>
 
 <style define:vars={{coverWidth}}>
 </style>
