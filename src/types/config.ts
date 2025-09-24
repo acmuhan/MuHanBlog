@@ -22,8 +22,13 @@ export type SiteConfig = {
 	};
 	banner: {
 		enable: boolean;
-		src: string;
+		src: string | string[]; // 支持单张或多张图片
 		position?: "top" | "center" | "bottom";
+		carousel?: {
+			enable: boolean;
+			interval: number;
+			autoplay: boolean;
+		};
 		credit: {
 			enable: boolean;
 			text: string;
@@ -46,6 +51,20 @@ export type SiteConfig = {
 			websiteId: string; // The Umami website UUID
 			src?: string; // Optional script src, default to public Umami cloud
 		};
+	};
+	
+	// Optional music player configuration
+	musicPlayer?: {
+		enable: boolean;
+		autoplay: boolean;
+		showPlaylist: boolean;
+		position: "bottom-left" | "bottom-right" | "top-left" | "top-right";
+		playlist: Array<{
+			title: string;
+			artist: string;
+			src: string;
+			cover?: string;
+		}>;
 	};
 };
 

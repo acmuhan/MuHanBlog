@@ -17,8 +17,13 @@ export const siteConfig: SiteConfig = {
 	},
 	banner: {
 		enable: true,
-		src: "assets/images/demo-banner.png", // 相对于 /src 目录的路径。如果以 '/' 开头，则相对于 /public 目录
+		src: ["assets/images/demo-banner.png"], // 支持多张横幅图片
 		position: "center", // 等同于 object-position，只支持 'top'、'center'、'bottom'。默认为 'center'
+		carousel: {
+			enable: true, // 启用轮播功能
+			interval: 5000, // 轮播间隔时间（毫秒）
+			autoplay: true, // 自动播放
+		},
 		credit: {
 			enable: false, // 显示横幅图片的版权信息文本
 			text: "", // 要显示的版权信息文本
@@ -47,6 +52,32 @@ export const siteConfig: SiteConfig = {
 			// 如使用自建 Umami，这里可改为 https://umami.your-domain.com/script.js
 			src: "https://cloud.umami.is/script.js",
 		},
+	},
+
+	// Music player configuration
+	musicPlayer: {
+		enable: true,
+		autoplay: false,
+		showPlaylist: true,
+		position: "bottom-right" as
+			| "bottom-left"
+			| "bottom-right"
+			| "top-left"
+			| "top-right",
+		playlist: [
+			{
+				title: "示例歌曲 1",
+				artist: "示例艺术家",
+				src: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav",
+				cover: "assets/images/demo-avatar.png",
+			},
+			{
+				title: "示例歌曲 2",
+				artist: "示例艺术家",
+				src: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav",
+				cover: "assets/images/demo-avatar.png",
+			},
+		],
 	},
 };
 

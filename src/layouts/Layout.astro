@@ -4,6 +4,7 @@ import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
 
 import ConfigCarrier from "@components/ConfigCarrier.astro";
+import MusicPlayer from "@components/MusicPlayer.svelte";
 import { profileConfig, siteConfig } from "@/config";
 import {
 	AUTO_MODE,
@@ -39,11 +40,15 @@ const isHomePage = pathsEqual(Astro.url.pathname, url("/"));
 // why doing this in Layout instead of GlobalStyles: https://github.com/withastro/astro/issues/6728#issuecomment-1502203757
 const configHue = siteConfig.themeColor.hue;
 if (!banner || typeof banner !== "string" || banner.trim() === "") {
-	banner = siteConfig.banner.src;
+	banner = Array.isArray(siteConfig.banner.src)
+		? siteConfig.banner.src[0]
+		: siteConfig.banner.src;
 }
 
 // TODO don't use post cover as banner for now
-banner = siteConfig.banner.src;
+banner = Array.isArray(siteConfig.banner.src)
+	? siteConfig.banner.src[0]
+	: siteConfig.banner.src;
 
 const enableBanner = siteConfig.banner.enable;
 
@@ -173,26 +178,35 @@ const bannerOffset =
 					data-cache="true"
 				></script>
 				<script is:inline>
-					// Ensure pageview tracked on SPA navigations (Swup / Astro navigations)
+					// Prevent duplicate tracking with session storage
+					const TRACKING_KEY = 'umami_tracked';
+					
 					const track = () => {
+						const currentPath = location.pathname;
+						const sessionKey = `${TRACKING_KEY}_${currentPath}`;
+						
+						// Check if already tracked in this session
+						if (sessionStorage.getItem(sessionKey)) {
+							return;
+						}
+						
 						try { 
 							if (window.umami && typeof window.umami.trackView === 'function') { 
-								window.umami.trackView(location.pathname, document.referrer); 
+								window.umami.trackView(currentPath, document.referrer); 
+								// Mark as tracked for this session
+								sessionStorage.setItem(sessionKey, 'true');
 							} 
 						} catch (e) {
 							console.warn('Umami tracking error:', e);
 						}
 					};
 					
-					// Track initial page load
+					// Track only once on initial load
 					document.addEventListener('DOMContentLoaded', track);
 					
 					// Track SPA navigations
 					document.addEventListener('astro:page-load', track);
 					document.addEventListener('swup:contentReplaced', track);
-					
-					// Also track on window load as fallback
-					window.addEventListener('load', track);
 				</script>
 			</>
 		)}
@@ -203,6 +217,17 @@ const bannerOffset =
 	>
 		<ConfigCarrier></ConfigCarrier>
 		<slot />
+		
+		<!-- Music Player -->
+		{siteConfig.musicPlayer?.enable && (
+			<MusicPlayer 
+				client:load
+				playlist={siteConfig.musicPlayer.playlist}
+				autoplay={siteConfig.musicPlayer.autoplay}
+				showPlaylist={siteConfig.musicPlayer.showPlaylist}
+				position={siteConfig.musicPlayer.position}
+			/>
+		)}
 
 		<!-- increase the page height during page transition to prevent the scrolling animation from jumping -->
 		<div id="page-height-extend" class="hidden h-[300vh]"></div>

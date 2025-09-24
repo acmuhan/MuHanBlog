@@ -116,9 +116,9 @@ const className = Astro.props.class;
     )}
 </div>
 
-<script is:inline>
+<script is:inline define:vars={{ shouldShowStats: !hideStats }}>
 // Fetch page views for current post using our proxy API
-if (!{hideStats}) {
+if (shouldShowStats) {
 (async () => {
   try {
     const endpoint = `/api/stats?url=${encodeURIComponent(window.location.pathname)}`;
