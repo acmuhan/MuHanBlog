@@ -4,7 +4,29 @@
 export default async function onRequest(context) {
 	try {
 		const { request } = context;
-		const url = new URL(request.url);
+
+		// Debug: Check what request.url contains
+		console.log("[DEBUG] request.url:", request.url);
+		console.log("[DEBUG] typeof request.url:", typeof request.url);
+
+		// Try to create URL object safely
+		let url;
+		try {
+			url = new URL(request.url);
+		} catch (urlError) {
+			return new Response(
+				JSON.stringify({
+					error: "URL parsing failed",
+					requestUrl: request.url,
+					urlError: urlError.message,
+				}),
+				{
+					status: 400,
+					headers: { "content-type": "application/json" },
+				},
+			);
+		}
+
 		const targetUrl = url.searchParams.get("url");
 		const debug = url.searchParams.get("debug") === "1";
 
@@ -40,6 +62,7 @@ export default async function onRequest(context) {
 					websiteId,
 					tokenType: token.startsWith("api_") ? "apiKey" : "bearer",
 					targetUrl,
+					requestUrl: request.url,
 					env: {
 						UMAMI_API_URL: process.env.UMAMI_API_URL,
 						UMAMI_WEBSITE_ID: process.env.UMAMI_WEBSITE_ID,
