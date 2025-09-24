@@ -6,13 +6,46 @@ import type { APIRoute } from "astro";
 //  - UMAMI_WEBSITE_ID (UUID)
 //  - UMAMI_API_TOKEN (Bearer token)
 
-export const GET: APIRoute = async ({ url }) => {
+export const GET: APIRoute = async ({ url, request }) => {
 	// Debug logging
 	console.log("API Request URL:", url.toString());
+	console.log("Request URL:", request.url);
 	console.log("Search params:", Object.fromEntries(url.searchParams.entries()));
 
-	const targetUrl = url.searchParams.get("url");
-	console.log("Extracted targetUrl:", targetUrl);
+	// Parse URL parameters manually from the request URL
+	const requestUrl = new URL(request.url);
+	console.log(
+		"Request URL search params:",
+		Object.fromEntries(requestUrl.searchParams.entries()),
+	);
+
+	// Try multiple ways to get the URL parameter
+	let targetUrl =
+		requestUrl.searchParams.get("url") || url.searchParams.get("url");
+
+	// If still not found, try parsing from the raw URL string
+	if (!targetUrl) {
+		const urlMatch = request.url.match(/[?&]url=([^&]*)/);
+		if (urlMatch) {
+			targetUrl = decodeURIComponent(urlMatch[1]);
+		}
+	}
+
+	// Additional debug: log the raw request URL
+	console.log("Raw request URL:", request.url);
+	console.log("URL match result:", request.url.match(/[?&]url=([^&]*)/));
+
+	// Try a different approach - parse from the full URL
+	if (!targetUrl) {
+		const fullUrl = new URL(request.url);
+		const urlParam = fullUrl.searchParams.get("url");
+		if (urlParam) {
+			targetUrl = urlParam;
+			console.log("Found URL param from full URL:", targetUrl);
+		}
+	}
+
+	console.log("Final targetUrl:", targetUrl);
 
 	// Environment variables debug
 	const apiBase = import.meta.env.UMAMI_API_URL || "https://cloud.umami.is";

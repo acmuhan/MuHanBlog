@@ -116,10 +116,15 @@ const className = Astro.props.class;
 // Fetch page views for current post using our proxy API
 (async () => {
   try {
-    const endpoint = `/api/stats?url=${encodeURIComponent(window.location.pathname)}`;
+    const endpoint = `/api/stats/?url=${encodeURIComponent(window.location.pathname)}`;
+    console.log('Fetching stats from:', endpoint);
     const res = await fetch(endpoint);
-    if (!res.ok) return;
+    if (!res.ok) {
+      console.error('Stats API error:', res.status, res.statusText);
+      return;
+    }
     const data = await res.json();
+    console.log('Stats API response:', data);
 
     const pv = Number(data?.pageviews || 0);
     const uv = Number(data?.visitors || 0);
@@ -130,6 +135,8 @@ const className = Astro.props.class;
     const visitorsEl = document.getElementById('post-visitors');
     if (visitorsEl) visitorsEl.textContent = `${uv} 位访客`;
 
-  } catch (_) {}
+  } catch (error) {
+    console.error('Stats fetch error:', error);
+  }
 })();
 </script>
