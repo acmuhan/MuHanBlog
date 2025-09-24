@@ -13,8 +13,20 @@ export default async function onRequest(context) {
 		let url;
 		try {
 			// EdgeOne Pages provides relative URLs, need to construct full URL
-			const fullUrl = `https://${request.headers.get("host") || "blog.muhan.wiki"}${request.url}`;
+			// Check different ways to get host
+			let host = "blog.muhan.wiki"; // fallback
+
+			if (request.headers && typeof request.headers.get === "function") {
+				host = request.headers.get("host") || host;
+			} else if (request.headers?.host) {
+				host = request.headers.host;
+			} else if (context.env?.HOST) {
+				host = context.env.HOST;
+			}
+
+			const fullUrl = `https://${host}${request.url}`;
 			console.log("[DEBUG] constructed fullUrl:", fullUrl);
+			console.log("[DEBUG] host source:", host);
 			url = new URL(fullUrl);
 		} catch (urlError) {
 			return new Response(
@@ -22,6 +34,8 @@ export default async function onRequest(context) {
 					error: "URL parsing failed",
 					requestUrl: request.url,
 					urlError: urlError.message,
+					requestHeaders: request.headers,
+					contextKeys: Object.keys(context),
 				}),
 				{
 					status: 400,
