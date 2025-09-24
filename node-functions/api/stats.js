@@ -6,6 +6,8 @@ export default async function onRequest(context) {
 		const { request } = context;
 		const url = new URL(request.url);
 		const targetUrl = url.searchParams.get("url");
+		const debug = url.searchParams.get("debug") === "1";
+
 		if (!targetUrl) {
 			return new Response(JSON.stringify({ error: "Missing url parameter" }), {
 				status: 400,
@@ -21,10 +23,17 @@ export default async function onRequest(context) {
 		const token = process.env.UMAMI_API_TOKEN;
 
 		if (!websiteId || !token) {
-			return new Response(JSON.stringify({ error: "Server not configured" }), {
-				status: 500,
-				headers: { "content-type": "application/json" },
-			});
+			return new Response(
+				JSON.stringify({
+					error: "Server not configured",
+					haveWebsiteId: !!websiteId,
+					haveToken: !!token,
+				}),
+				{
+					status: 500,
+					headers: { "content-type": "application/json" },
+				},
+			);
 		}
 
 		const endAt = Date.now();
@@ -56,14 +65,28 @@ export default async function onRequest(context) {
 		);
 		console.log("[stats] url", targetUrl);
 
+		let mode = "v1";
 		let res;
-		if (isApiKey) {
+		try {
 			res = await fetch(v1Stats, { headers: headersV1 });
-			if (!res.ok) console.log("[stats] v1 failed", res.status);
-		} else {
-			res = await fetch(v2Stats, { headers: headersV2 });
-			if (!res.ok) console.log("[stats] v2 failed", res.status);
+			if (!res.ok) {
+				console.log("[stats] v1 failed", res.status);
+				mode = "v2";
+				res = await fetch(v2Stats, { headers: headersV2 });
+			}
+		} catch (err) {
+			return new Response(
+				JSON.stringify({
+					error: "Fetch failed",
+					message: String(err?.message || err),
+				}),
+				{
+					status: 502,
+					headers: { "content-type": "application/json" },
+				},
+			);
 		}
+
 		if (!res.ok) {
 			const body = await res.text().catch(() => "");
 			return new Response(
@@ -71,6 +94,7 @@ export default async function onRequest(context) {
 					error: "Upstream error",
 					status: res.status,
 					body: body.slice(0, 200),
+					mode,
 				}),
 				{ status: 502, headers: { "content-type": "application/json" } },
 			);
@@ -86,14 +110,28 @@ export default async function onRequest(context) {
 		const pageviews = toNumber(data?.pageviews);
 		const visitors = toNumber(data?.visitors);
 
-		return new Response(JSON.stringify({ pageviews, visitors }), {
+		const payload = { pageviews, visitors };
+		if (debug)
+			Object.assign(payload, {
+				mode,
+				websiteId,
+				tokenType: isApiKey ? "apiKey" : "bearer",
+				url: targetUrl,
+			});
+		return new Response(JSON.stringify(payload), {
 			status: 200,
 			headers: { "content-type": "application/json" },
 		});
-	} catch (_e) {
-		return new Response(JSON.stringify({ error: "Request failed" }), {
-			status: 500,
-			headers: { "content-type": "application/json" },
-		});
+	} catch (e) {
+		return new Response(
+			JSON.stringify({
+				error: "Request failed",
+				message: String(e?.message || e),
+			}),
+			{
+				status: 500,
+				headers: { "content-type": "application/json" },
+			},
+		);
 	}
 }
