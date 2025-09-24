@@ -34,22 +34,45 @@ export default async function onRequest(context) {
 			targetUrl,
 		)}`;
 
+		const commonHeaders = {
+			Authorization: `Bearer ${token}`,
+			Accept: "application/json",
+		};
 		const [pvRes, statsRes] = await Promise.all([
-			fetch(pvEndpoint, { headers: { Authorization: `Bearer ${token}` } }),
-			fetch(statsEndpoint, { headers: { Authorization: `Bearer ${token}` } }),
+			fetch(pvEndpoint, { headers: commonHeaders }),
+			fetch(statsEndpoint, { headers: commonHeaders }),
 		]);
 
 		if (!pvRes.ok || !statsRes.ok) {
-			return new Response(JSON.stringify({ error: "Upstream error" }), {
-				status: 502,
-				headers: { "content-type": "application/json" },
-			});
+			const pvBody = await pvRes.text().catch(() => "");
+			const stBody = await statsRes.text().catch(() => "");
+			return new Response(
+				JSON.stringify({
+					error: "Upstream error",
+					pvStatus: pvRes.status,
+					statsStatus: statsRes.status,
+					pvBody: pvBody.slice(0, 200),
+					statsBody: stBody.slice(0, 200),
+				}),
+				{
+					status: 502,
+					headers: { "content-type": "application/json" },
+				},
+			);
 		}
 
-		const [pvData, statsData] = await Promise.all([
-			pvRes.json(),
-			statsRes.json(),
+		const [pvRaw, statsRaw] = await Promise.all([
+			pvRes.text(),
+			statsRes.text(),
 		]);
+		let pvData = {};
+		let statsData = {};
+		try {
+			pvData = JSON.parse(pvRaw);
+		} catch {}
+		try {
+			statsData = JSON.parse(statsRaw);
+		} catch {}
 
 		const pageviews = Array.isArray(pvData?.data)
 			? pvData.data.reduce((sum, i) => sum + (Number(i?.y) || 0), 0)
