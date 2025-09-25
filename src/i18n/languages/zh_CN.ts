@@ -35,4 +35,8 @@ export const zh_CN: Translation = {
 	[Key.author]: "作者",
 	[Key.publishedAt]: "发布于",
 	[Key.license]: "许可协议",
+
+	[Key.donationTitle]: "赞赏支持",
+	[Key.donationDescription]: "如果这篇文章对你有帮助，欢迎请我喝杯咖啡 ☕",
+	[Key.donationThanks]: "感谢您的支持，这将激励我创作更多优质内容！",
 };
