@@ -132,6 +132,7 @@ if (shouldShowStats) {
     const currentPath = window.location.pathname;
     const endpoint = `/api/stats?url=${encodeURIComponent(currentPath)}`;
     console.log('[Stats] Fetching stats from (PostMeta):', endpoint);
+    console.log('[Stats] Current pathname:', currentPath);
     
     const res = await fetch(endpoint, {
       method: 'GET',
