@@ -5,28 +5,28 @@ import type { MusicPlayerState, Song } from "../config/music";
 import { musicConfig } from "../config/music";
 import { musicAPI } from "../utils/music-api";
 
-	// 播放器状态
-	let playerState: MusicPlayerState = {
-		isVisible: false,
-		isPlaying: false,
-		isExpanded: false,
-		isLoading: false,
-		currentSong: null,
-		currentTime: 0,
-		duration: 0,
-		volume: musicConfig.defaultVolume,
-		isShuffle: musicConfig.enableShuffle,
-		isRepeat: musicConfig.enableRepeat,
-		currentPage: 1,
-		totalPages: 1,
-		playlist: [],
-		currentIndex: 0,
-	};
+// 播放器状态
+let playerState: MusicPlayerState = {
+	isVisible: false,
+	isPlaying: false,
+	isExpanded: false,
+	isLoading: false,
+	currentSong: null,
+	currentTime: 0,
+	duration: 0,
+	volume: musicConfig.defaultVolume,
+	isShuffle: musicConfig.enableShuffle,
+	isRepeat: musicConfig.enableRepeat,
+	currentPage: 1,
+	totalPages: 1,
+	playlist: [],
+	currentIndex: 0,
+};
 
-	// 拖拽状态
-	let isDragging = false;
-	let dragOffset = { x: 0, y: 0 };
-	let playerPosition = { x: 20, y: 20 }; // 距离右下角的像素距离
+// 拖拽状态
+let isDragging = false;
+let dragOffset = { x: 0, y: 0 };
+let playerPosition = { x: 20, y: 20 }; // 距离右下角的像素距离
 
 // 音频元素和相关变量
 let audioElement: HTMLAudioElement;
@@ -300,12 +300,12 @@ function handleKeydown(event: KeyboardEvent) {
 // 拖拽功能
 function handleDragStart(event: MouseEvent) {
 	if (typeof window === "undefined") return;
-	
+
 	isDragging = true;
 	const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
 	dragOffset.x = event.clientX - rect.left;
 	dragOffset.y = event.clientY - rect.top;
-	
+
 	document.addEventListener("mousemove", handleDragMove);
 	document.addEventListener("mouseup", handleDragEnd);
 	event.preventDefault();
@@ -313,10 +313,10 @@ function handleDragStart(event: MouseEvent) {
 
 function handleDragMove(event: MouseEvent) {
 	if (!isDragging || typeof window === "undefined") return;
-	
+
 	const newX = window.innerWidth - (event.clientX - dragOffset.x + 400); // 400是播放器宽度
 	const newY = window.innerHeight - (event.clientY - dragOffset.y + 200); // 200是播放器高度
-	
+
 	// 限制在屏幕范围内
 	playerPosition.x = Math.max(20, Math.min(window.innerWidth - 400, newX));
 	playerPosition.y = Math.max(20, Math.min(window.innerHeight - 200, newY));
@@ -325,7 +325,7 @@ function handleDragMove(event: MouseEvent) {
 function handleDragEnd() {
 	isDragging = false;
 	if (typeof document === "undefined") return;
-	
+
 	document.removeEventListener("mousemove", handleDragMove);
 	document.removeEventListener("mouseup", handleDragEnd);
 }
@@ -333,7 +333,7 @@ function handleDragEnd() {
 // 自动播放功能
 async function startAutoPlay() {
 	if (!musicConfig.enableAutoPlay || !playerState.currentSong) return;
-	
+
 	try {
 		// 现代浏览器需要用户交互才能自动播放
 		// 我们可以尝试播放，如果失败就显示播放按钮
@@ -368,7 +368,7 @@ onMount(async () => {
 		playerState.currentSong = playerState.playlist[0];
 		playerState.currentIndex = 0;
 		audioElement.src = playerState.currentSong.url;
-		
+
 		// 延迟一点时间再尝试自动播放，确保音频加载完成
 		setTimeout(() => {
 			startAutoPlay();
