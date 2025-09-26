@@ -12,12 +12,152 @@ export class MusicAPI {
 		this.defaultPlaylistId = musicConfig.defaultPlaylistId;
 		this.pageSize = musicConfig.pageSize;
 
-		// 定义多个备用端点来解决HTTPS/HTTP问题
+		// 定义备用端点，优先使用新API
 		this.fallbackEndpoints = [
-			"https://103.40.14.239:12237", // HTTPS版本
-			"http://103.40.14.239:12237", // HTTP版本
-			// 可以添加更多备用端点
+			"http://111.170.19.241:8001", // 新API HTTP版本（优先）
+			"https://111.170.19.241:8001", // 新API HTTPS版本
+			// 减少备用端点数量，避免过多重试
 		];
+	}
+
+	/**
+	 * 随机获取3页歌单数据
+	 * @param playlistId 歌单ID
+	 * @param cookiesJson 自定义cookies
+	 * @param musicU 请求头
+	 */
+	async getAllSongs(
+		playlistId = this.defaultPlaylistId,
+		cookiesJson?: string,
+		musicU?: string,
+	): Promise<{ songs: Song[]; totalPages: number }> {
+		const allSongs: Song[] = [];
+		let totalPages = 1;
+
+		console.log("开始随机获取3页歌曲数据...");
+
+		// 先获取第一页了解总页数
+		try {
+			const firstPageResult = await this.getPlaylist(
+				playlistId,
+				1,
+				20, // 使用较小的页面大小获取总页数
+				cookiesJson,
+				musicU,
+			);
+
+			if (firstPageResult?.songs) {
+				allSongs.push(...firstPageResult.songs);
+				totalPages = firstPageResult.pagination.total_pages;
+				console.log(
+					`第1页获取成功，总页数: ${totalPages}，歌曲数量: ${firstPageResult.songs.length}`,
+				);
+			}
+		} catch (error) {
+			console.error("获取第一页失败:", error);
+			return this.getMockAllSongsData();
+		}
+
+		// 随机选择另外2页（如果总页数大于1）
+		if (totalPages > 1) {
+			const availablePages = [];
+			for (let i = 2; i <= Math.min(totalPages, 50); i++) {
+				// 限制在前50页内随机选择
+				availablePages.push(i);
+			}
+
+			// 随机打乱页面数组并选择前2页
+			const shuffledPages = availablePages.sort(() => Math.random() - 0.5);
+			const selectedPages = shuffledPages.slice(0, 2);
+
+			console.log(`随机选择页面: ${selectedPages.join(", ")}`);
+
+			// 顺序获取选中的页面
+			for (const page of selectedPages) {
+				try {
+					const result = await this.getPlaylist(
+						playlistId,
+						page,
+						20,
+						cookiesJson,
+						musicU,
+					);
+					if (result?.songs) {
+						allSongs.push(...result.songs);
+						console.log(
+							`第${page}页获取成功，歌曲数量: ${result.songs.length}`,
+						);
+					}
+
+					// 减少延迟提高加载速度
+					await new Promise((resolve) => setTimeout(resolve, 100));
+				} catch (error) {
+					console.error(`获取第${page}页失败:`, error);
+					// 继续获取下一页
+				}
+			}
+		}
+
+		console.log(`随机3页歌曲获取完成，总歌曲数量: ${allSongs.length}`);
+
+		return {
+			songs: allSongs,
+			totalPages,
+		};
+	}
+
+	/**
+	 * 批量获取多页歌单数据
+	 * @param playlistId 歌单ID
+	 * @param pages 要获取的页数
+	 * @param pageSize 每页数量
+	 * @param cookiesJson 自定义cookies
+	 * @param musicU 请求头
+	 */
+	async getMultiplePages(
+		playlistId = this.defaultPlaylistId,
+		pages = 5,
+		pageSize = this.pageSize,
+		cookiesJson?: string,
+		musicU?: string,
+	): Promise<{ songs: Song[]; totalPages: number }> {
+		const allSongs: Song[] = [];
+		let totalPages = 1;
+
+		console.log(`开始获取${pages}页歌曲数据...`);
+
+		// 使用顺序请求减少服务器压力，添加延迟
+		for (let page = 1; page <= pages; page++) {
+			try {
+				const result = await this.getPlaylist(
+					playlistId,
+					page,
+					pageSize,
+					cookiesJson,
+					musicU,
+				);
+				if (result?.songs) {
+					allSongs.push(...result.songs);
+					totalPages = Math.max(totalPages, result.pagination.total_pages);
+					console.log(`第${page}页获取成功，歌曲数量: ${result.songs.length}`);
+				}
+
+				// 添加延迟减少服务器压力
+				if (page < pages) {
+					await new Promise((resolve) => setTimeout(resolve, 200)); // 200ms延迟
+				}
+			} catch (error) {
+				console.error(`获取第${page}页失败:`, error);
+				// 继续获取下一页
+			}
+		}
+
+		console.log(`多页获取完成，总歌曲数量: ${allSongs.length}`);
+
+		return {
+			songs: allSongs,
+			totalPages,
+		};
 	}
 
 	/**
@@ -41,7 +181,9 @@ export class MusicAPI {
 		for (const endpoint of this.fallbackEndpoints) {
 			console.log(`尝试端点: ${endpoint}`);
 
-			for (let attempt = 1; attempt <= retries; attempt++) {
+			// 减少重试次数，避免过多请求
+			const maxAttempts = Math.min(retries, 2); // 最多重试2次
+			for (let attempt = 1; attempt <= maxAttempts; attempt++) {
 				try {
 					const result = await this.tryFetchPlaylist(
 						endpoint,
@@ -119,7 +261,7 @@ export class MusicAPI {
 
 		const headers: Record<string, string> = {
 			Accept: "application/json",
-			"Content-Type": "application/json",
+			// 移除Content-Type避免CORS预检请求
 		};
 
 		if (musicU) {
@@ -225,6 +367,29 @@ export class MusicAPI {
 		}
 
 		return null;
+	}
+
+	/**
+	 * 获取模拟所有歌曲数据（用于API失败时的降级）
+	 */
+	private getMockAllSongsData(): { songs: Song[]; totalPages: number } {
+		const mockSongs: Song[] = [];
+
+		// 生成更多模拟歌曲数据
+		for (let i = 1; i <= 100; i++) {
+			mockSongs.push({
+				id: i,
+				name: `示例歌曲 ${i}`,
+				artist: `示例艺术家 ${Math.ceil(i / 10)}`,
+				url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav",
+				pic_url: `https://via.placeholder.com/300x300/${Math.floor(Math.random() * 16777215).toString(16)}/ffffff?text=Music${i}`,
+			});
+		}
+
+		return {
+			songs: mockSongs,
+			totalPages: 5,
+		};
 	}
 
 	/**

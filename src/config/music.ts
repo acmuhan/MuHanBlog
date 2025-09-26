@@ -7,19 +7,21 @@ export interface MusicConfig {
 	enableShuffle: boolean;
 	enableRepeat: boolean;
 	defaultVolume: number;
+	preloadPages: number; // 预加载页数
 }
 
 export const musicConfig: MusicConfig = {
 	// 使用多个API端点进行降级处理
 	apiBase:
-		typeof window !== "undefined" ? getApiBase() : "http://103.40.14.239:12237",
+		typeof window !== "undefined" ? getApiBase() : "http://111.170.19.241:8001",
 	defaultPlaylistId: 123456,
-	pageSize: 20,
+	pageSize: 60, // 默认显示60首歌曲
 	enableKeyboardShortcuts: true,
 	enableAutoPlay: true,
-	enableShuffle: false,
+	enableShuffle: true, // 默认开启随机播放
 	enableRepeat: false,
 	defaultVolume: 0.7,
+	preloadPages: 10, // 预加载更多页面获取所有歌曲
 };
 
 /**
@@ -31,11 +33,11 @@ function getApiBase(): string {
 		// 方案1: 尝试使用HTTPS端口（如果服务器支持）
 		// 方案2: 使用公共代理服务
 		// 方案3: 使用JSONP（如果API支持）
-		return "https://103.40.14.239:12237"; // 先尝试HTTPS
+		return "https://111.170.19.241:8001"; // 先尝试HTTPS
 	}
 
 	// HTTP环境直接使用HTTP
-	return "http://103.40.14.239:12237";
+	return "http://111.170.19.241:8001";
 }
 
 export interface Song {
@@ -74,6 +76,9 @@ export interface MusicPlayerState {
 	isRepeat: boolean;
 	currentPage: number;
 	totalPages: number;
-	playlist: Song[];
+	playlist: Song[]; // 当前页面显示的歌曲列表
 	currentIndex: number;
+	fullPlaylist: Song[]; // 完整的歌曲列表（多页合并）
+	shuffledPlaylist: Song[]; // 随机播放列表
+	shuffleIndex: number; // 随机播放列表中的当前索引
 }
