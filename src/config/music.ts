@@ -10,7 +10,10 @@ export interface MusicConfig {
 }
 
 export const musicConfig: MusicConfig = {
-	apiBase: "http://103.40.14.239:12237",
+	apiBase:
+		typeof window !== "undefined" && window.location.protocol === "https:"
+			? "https://103.40.14.239:12237"
+			: "http://103.40.14.239:12237",
 	defaultPlaylistId: 123456,
 	pageSize: 20,
 	enableKeyboardShortcuts: true,

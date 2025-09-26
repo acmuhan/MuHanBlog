@@ -1,6 +1,7 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
 import { onDestroy, onMount } from "svelte";
+import { slide, fade } from "svelte/transition";
 import type { MusicPlayerState, Song } from "../config/music";
 import { musicConfig } from "../config/music";
 import { musicAPI } from "../utils/music-api";
@@ -27,6 +28,12 @@ let playerState: MusicPlayerState = {
 let isDragging = false;
 let dragOffset = { x: 0, y: 0 };
 let playerPosition = { x: 20, y: 20 }; // 距离右下角的像素距离
+
+// 移动端和边距把手状态
+let isMobile = false;
+let isMinimizedToEdge = false;
+let windowWidth = 0;
+let windowHeight = 0;
 
 // 音频元素和相关变量
 let audioElement: HTMLAudioElement;
@@ -108,6 +115,15 @@ function playPrevious() {
 	}
 
 	selectSong(newIndex);
+	
+	// 自动播放上一首
+	setTimeout(() => {
+		if (audioElement && playerState.currentSong) {
+			audioElement.play().catch(error => {
+				console.log("自动播放失败:", error);
+			});
+		}
+	}, 100);
 }
 
 function playNext() {
@@ -124,6 +140,15 @@ function playNext() {
 	}
 
 	selectSong(newIndex);
+	
+	// 自动播放下一首
+	setTimeout(() => {
+		if (audioElement && playerState.currentSong) {
+			audioElement.play().catch(error => {
+				console.log("自动播放失败:", error);
+			});
+		}
+	}, 100);
 }
 
 function selectSong(index: number) {
@@ -345,12 +370,84 @@ async function startAutoPlay() {
 	}
 }
 
+// 移动端检测
+function detectMobile() {
+	if (typeof window === "undefined") return false;
+
+	const userAgent =
+		navigator.userAgent ||
+		navigator.vendor ||
+		(window as Window & { opera?: string }).opera ||
+		"";
+	const isMobileUA =
+		/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+			userAgent,
+		);
+	const isTouchDevice =
+		"ontouchstart" in window || navigator.maxTouchPoints > 0;
+	const isSmallScreen = window.innerWidth <= 768;
+
+	return isMobileUA || (isTouchDevice && isSmallScreen);
+}
+
+// 窗口大小变化处理
+function handleResize() {
+	if (typeof window === "undefined") return;
+
+	windowWidth = window.innerWidth;
+	windowHeight = window.innerHeight;
+	isMobile = detectMobile();
+
+	// 移动端自动调整位置
+	if (isMobile) {
+		if (playerState.isExpanded) {
+			// 移动端展开时占据更多空间
+			playerPosition.x = 10;
+			playerPosition.y = 10;
+		} else {
+			// 移动端收起时靠边
+			playerPosition.x = 10;
+			playerPosition.y = 80;
+		}
+	}
+}
+
+// 边距把手功能 - 收回到边缘
+function minimizeToEdge() {
+	if (typeof window === "undefined") return;
+
+	isMinimizedToEdge = true;
+	playerState.isExpanded = false;
+
+	// 收回到右边缘，只显示一个小把手
+	playerPosition.x = -280; // 大部分隐藏在右边缘外
+	playerPosition.y = Math.min(playerPosition.y, windowHeight - 100);
+}
+
+// 从边缘展开
+function expandFromEdge() {
+	isMinimizedToEdge = false;
+	playerPosition.x = 20; // 恢复正常位置
+}
+
+// 点击展开播放器
+function toggleExpanded() {
+	if (isMinimizedToEdge) {
+		expandFromEdge();
+	}
+	playerState.isExpanded = !playerState.isExpanded;
+}
+
 // 组件生命周期
 onMount(async () => {
 	// 确保在浏览器环境中运行
 	if (typeof window === "undefined" || typeof document === "undefined") {
 		return;
 	}
+
+	// 初始化窗口大小和移动端检测
+	handleResize();
+	window.addEventListener("resize", handleResize);
 
 	// 创建音频元素
 	audioElement = new Audio();
@@ -400,6 +497,7 @@ onDestroy(() => {
 	}
 
 	// 移除事件监听器
+	window.removeEventListener("resize", handleResize);
 	document.removeEventListener("keydown", handleKeydown);
 	document.removeEventListener("mousemove", handleProgressMouseMove);
 	document.removeEventListener("mouseup", handleProgressMouseUp);
@@ -414,6 +512,8 @@ onDestroy(() => {
 	class="music-player-container fixed z-50 transition-all duration-300 ease-out"
 	class:expanded={playerState.isExpanded}
 	class:dragging={isDragging}
+	class:mobile={isMobile}
+	class:minimized-to-edge={isMinimizedToEdge}
 	style="bottom: {playerPosition.y}px; right: {playerPosition.x}px;"
 >
 	<!-- 主播放器卡片 -->
@@ -426,6 +526,7 @@ onDestroy(() => {
 			role="button"
 			tabindex="0"
 			aria-label="拖拽音乐播放器"
+			transition:slide={{ duration: 400, axis: 'y' }}
 		>
 			<!-- 专辑封面 -->
 			<div class="album-cover relative overflow-hidden rounded-lg">
@@ -471,7 +572,7 @@ onDestroy(() => {
 			<div class="play-controls flex items-center gap-2">
 				<button 
 					class="control-btn btn-plain rounded-full w-8 h-8 flex items-center justify-center"
-					on:click={playPrevious}
+					on:click={(e) => { e.stopPropagation(); playPrevious(); }}
 					disabled={playerState.isLoading}
 				>
 					<Icon icon="material-symbols:skip-previous" class="text-lg" />
@@ -479,7 +580,7 @@ onDestroy(() => {
 				
 				<button 
 					class="play-pause-btn btn-plain rounded-full w-10 h-10 flex items-center justify-center bg-[var(--primary)] text-white"
-					on:click={togglePlay}
+					on:click={(e) => { e.stopPropagation(); togglePlay(); }}
 					disabled={!playerState.currentSong || playerState.isLoading}
 				>
 					{#if playerState.isLoading}
@@ -493,7 +594,7 @@ onDestroy(() => {
 				
 				<button 
 					class="control-btn btn-plain rounded-full w-8 h-8 flex items-center justify-center"
-					on:click={playNext}
+					on:click={(e) => { e.stopPropagation(); playNext(); }}
 					disabled={playerState.isLoading}
 				>
 					<Icon icon="material-symbols:skip-next" class="text-lg" />
@@ -503,7 +604,7 @@ onDestroy(() => {
 			<!-- 展开按钮 -->
 			<button 
 				class="expand-btn btn-plain rounded-full w-8 h-8 flex items-center justify-center"
-				on:click={() => playerState.isExpanded = true}
+				on:click={(e) => { e.stopPropagation(); playerState.isExpanded = true; }}
 			>
 				<Icon icon="material-symbols:expand-less" class="text-lg" />
 			</button>
@@ -512,7 +613,7 @@ onDestroy(() => {
 		
 		<!-- 展开状态 -->
 		{#if playerState.isExpanded}
-		<div class="expanded-player p-6">
+		<div class="expanded-player p-6" transition:slide={{ duration: 400, axis: 'y' }}>
 			<!-- 头部控制栏 -->
 			<div class="header flex items-center justify-between mb-6">
 				<div 
@@ -525,12 +626,22 @@ onDestroy(() => {
 					<Icon icon="material-symbols:drag-indicator" class="text-[var(--btn-content)] text-lg" />
 					<h3 class="text-lg font-semibold text-[var(--deep-text)]">音乐播放器</h3>
 				</div>
-				<button 
-					class="collapse-btn btn-plain rounded-full w-8 h-8 flex items-center justify-center"
-					on:click={() => playerState.isExpanded = false}
-				>
-					<Icon icon="material-symbols:expand-more" class="text-lg" />
-				</button>
+				<div class="header-controls flex items-center gap-2">
+					<button 
+						class="edge-btn btn-plain rounded-full w-8 h-8 flex items-center justify-center"
+						on:click={minimizeToEdge}
+						title="收回到边缘"
+					>
+						<Icon icon="material-symbols:keyboard-double-arrow-right" class="text-lg" />
+					</button>
+					<button 
+						class="collapse-btn btn-plain rounded-full w-8 h-8 flex items-center justify-center"
+						on:click={() => playerState.isExpanded = false}
+						title="收起播放器"
+					>
+						<Icon icon="material-symbols:expand-more" class="text-lg" />
+					</button>
+				</div>
 			</div>
 			
 			<!-- 当前歌曲信息 -->
@@ -749,6 +860,23 @@ onDestroy(() => {
 		</div>
 		{/if}
 	</div>
+	
+	<!-- 边缘把手 -->
+	{#if isMinimizedToEdge}
+	<div 
+		class="edge-handle fixed z-50 cursor-pointer"
+		style="bottom: {playerPosition.y + 20}px; right: 0px;"
+		on:click={expandFromEdge}
+		on:keydown={(e) => e.key === 'Enter' && expandFromEdge()}
+		role="button"
+		tabindex="0"
+		aria-label="展开音乐播放器"
+	>
+		<div class="handle-tab bg-[var(--primary)] text-white p-2 rounded-l-lg shadow-lg">
+			<Icon icon="material-symbols:music-note" class="text-lg" />
+		</div>
+	</div>
+	{/if}
 </div>
 {/if}
 
@@ -757,6 +885,7 @@ onDestroy(() => {
 	max-width: 400px
 	min-width: 280px
 	user-select: none
+	transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1)
 	
 	&.expanded
 		min-width: 360px
@@ -767,11 +896,39 @@ onDestroy(() => {
 		.music-player-card
 			transform: scale(1.02)
 			box-shadow: 0 32px 64px rgba(0, 0, 0, 0.2), 0 16px 32px rgba(0, 0, 0, 0.15)
+	
+	// 移动端适配
+	&.mobile
+		max-width: calc(100vw - 20px)
+		min-width: 260px
+		
+		&.expanded
+			max-width: calc(100vw - 20px)
+			min-width: 300px
+			max-height: calc(100vh - 40px)
+			overflow-y: auto
+		
+		.mini-player
+			padding: 12px
+			
+		.expanded-player
+			padding: 16px
+	
+	// 边缘最小化状态
+	&.minimized-to-edge
+		.music-player-card
+			opacity: 0.1
+			pointer-events: none
+			
+		&:hover .music-player-card
+			opacity: 0.3
 
 .music-player-card
 	background: var(--card-bg)
 	border: 1px solid var(--line-divider)
 	box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(0, 0, 0, 0.08)
+	transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1)
+	overflow: hidden
 	
 	:global(.dark) &
 		box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3), 0 8px 16px rgba(0, 0, 0, 0.2)
@@ -837,6 +994,52 @@ onDestroy(() => {
 	&:active
 		color: var(--primary)
 		opacity: 0.8
+
+// 边缘把手样式
+.edge-handle
+	.handle-tab
+		transition: all 0.3s ease
+		transform: translateX(0)
+		
+		&:hover
+			transform: translateX(-5px)
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2)
+
+// 移动端特殊样式
+@media (max-width: 768px)
+	.music-player-container
+		&.expanded
+			position: fixed !important
+			top: 20px !important
+			left: 10px !important
+			right: 10px !important
+			bottom: 20px !important
+			width: auto !important
+			height: auto !important
+			max-width: none !important
+			max-height: none !important
+			
+		.mini-player
+			min-height: 60px
+
+// 安卓特殊适配
+@media (max-width: 480px)
+	.music-player-container
+		font-size: 14px
+		
+		&.expanded .expanded-player
+			padding: 12px
+			
+		.mini-player
+			padding: 8px
+			gap: 8px
+			
+		.album-cover img
+			width: 40px !important
+			height: 40px !important
+			
+		.song-details
+			font-size: 12px
 
 // 音频可视化效果
 .audio-visualizer
