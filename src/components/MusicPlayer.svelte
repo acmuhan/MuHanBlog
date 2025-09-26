@@ -502,16 +502,16 @@ onMount(async () => {
 	// 初始化窗口大小和移动端检测
 	handleResize();
 	window.addEventListener("resize", handleResize);
-	
+
 	// 安卓端特殊处理
 	if (isAndroid) {
 		console.log("检测到安卓设备，应用特殊优化");
-		
+
 		// 强制显示播放器（某些安卓浏览器可能有显示问题）
 		setTimeout(() => {
 			playerState.isVisible = true;
 		}, 100);
-		
+
 		// 安卓端触摸事件优化
 		document.addEventListener("touchstart", () => {}, { passive: true });
 		document.addEventListener("touchmove", () => {}, { passive: true });
