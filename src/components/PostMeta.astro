@@ -129,10 +129,11 @@ if (shouldShowStats) {
   
   try {
     // Use the same URL format as PostCard for consistency
-    const currentPath = window.location.pathname;
+    // Decode the pathname to match PostCard format
+    const currentPath = decodeURIComponent(window.location.pathname);
     const endpoint = `/api/stats?url=${encodeURIComponent(currentPath)}`;
     console.log('[Stats] Fetching stats from (PostMeta):', endpoint);
-    console.log('[Stats] Current pathname:', currentPath);
+    console.log('[Stats] Current pathname (decoded):', currentPath);
     
     const res = await fetch(endpoint, {
       method: 'GET',
