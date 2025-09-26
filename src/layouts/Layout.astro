@@ -3,6 +3,7 @@ import "@fontsource/roboto/400.css";
 import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
 
+import BannerMusicSync from "@components/BannerMusicSync.svelte";
 import ConfigCarrier from "@components/ConfigCarrier.astro";
 import MusicPlayer from "@components/MusicPlayer.svelte";
 import { profileConfig, siteConfig } from "@/config";
@@ -264,6 +265,10 @@ const bannerOffset =
 		  data-overlayscrollbars-initialize
 	>
 		<ConfigCarrier></ConfigCarrier>
+		
+		<!-- 音乐背景联动组件 -->
+		<BannerMusicSync client:only="svelte" />
+		
 		<slot />
 		
 		<!-- 音乐播放器 -->

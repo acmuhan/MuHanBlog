@@ -1347,15 +1347,6 @@ onDestroy(() => {
 				
 				<button 
 					class="control-btn btn-plain rounded-full w-12 h-12 flex items-center justify-center"
-					on:click={reshuffleSongs}
-					title="重新随机排序歌曲"
-					disabled={playerState.isLoading || playerState.fullPlaylist.length === 0}
-				>
-					<Icon icon="material-symbols:refresh" class="text-xl" />
-				</button>
-				
-				<button 
-					class="control-btn btn-plain rounded-full w-12 h-12 flex items-center justify-center"
 					on:click={playPrevious}
 					disabled={playerState.isLoading}
 				>
@@ -1423,8 +1414,19 @@ onDestroy(() => {
 			<div class="pagination-section">
 				<div class="pagination-header flex items-center justify-between mb-3">
 					<span class="text-sm font-medium text-[var(--deep-text)]">歌单</span>
-					<div class="page-info text-xs text-[var(--btn-content)]">
-						第 {playerState.currentPage} 页 / 共 {playerState.totalPages} 页
+					<div class="flex items-center gap-2">
+						<div class="page-info text-xs text-[var(--btn-content)]">
+							第 {playerState.currentPage} 页 / 共 {playerState.totalPages} 页
+						</div>
+						<button 
+							class="refresh-btn btn-card rounded-lg px-2 py-1 text-xs hover:bg-[var(--btn-hover-bg)] transition-colors"
+							on:click={reshuffleSongs}
+							disabled={playerState.isLoading}
+							title="重新随机排序歌曲"
+							aria-label="重新随机排序歌曲"
+						>
+							<Icon icon="material-symbols:refresh" class="text-sm text-[var(--primary)]" />
+						</button>
 					</div>
 				</div>
 				

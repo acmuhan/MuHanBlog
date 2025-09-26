@@ -14,8 +14,8 @@ export class MusicAPI {
 
 		// 定义备用端点，优先使用新API
 		this.fallbackEndpoints = [
-			"http://111.170.19.241:8001", // 新API HTTP版本（优先）
-			"https://111.170.19.241:8001", // 新API HTTPS版本
+			"http://111.170.19.241:8002", // 新API HTTP版本（优先）
+			"https://111.170.19.241:8002", // 新API HTTPS版本
 			// 减少备用端点数量，避免过多重试
 		];
 	}
