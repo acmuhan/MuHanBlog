@@ -170,92 +170,48 @@ const bannerOffset =
 					defer
 					src={siteConfig.analytics.umami.src || 'https://umami.is/script.js'}
 					data-website-id={siteConfig.analytics.umami.websiteId}
-					data-domains={Astro.url.host}
-					data-auto-track="false"
+					data-domains="blog.muhan.wiki"
+					data-auto-track="true"
 					data-cache="true"
 					onload="console.log('[Umami] Script loaded successfully')"
 					onerror="console.error('[Umami] Failed to load script')"
 				></script>
 				<script is:inline>
-					// Global Umami tracking state management
-					window.umamiTracking = window.umamiTracking || {
-						initialized: false,
-						trackingInProgress: false,
-						trackedPaths: new Set()
-					};
+					// Simplified Umami tracking for manual events
+					window.umamiReady = false;
+					let retryCount = 0;
+					const maxRetries = 20;
 					
-					const TRACKING_KEY = 'umami_tracked';
-					let isInitialLoad = true;
+					function waitForUmami() {
+						if (window.umami && typeof window.umami.track === 'function') {
+							window.umamiReady = true;
+							console.log('[Umami] Ready for tracking');
+							return true;
+						}
+						
+						if (retryCount < maxRetries) {
+							retryCount++;
+							setTimeout(waitForUmami, 500);
+						} else {
+							console.warn('[Umami] Failed to initialize after', maxRetries, 'attempts');
+						}
+						return false;
+					}
 					
-					const track = async (eventType = 'unknown') => {
-						// Prevent concurrent tracking
-						if (window.umamiTracking.trackingInProgress) {
-							console.log('[Umami] Tracking already in progress, skipping');
-							return;
-						}
-						
-						const currentPath = location.pathname;
-						const sessionKey = `${TRACKING_KEY}_${currentPath}`;
-						
-						// Check if already tracked in this session for this path
-						if (sessionStorage.getItem(sessionKey) || window.umamiTracking.trackedPaths.has(currentPath)) {
-							console.log('[Umami] Already tracked for this path in session:', currentPath);
-							return;
-						}
-						
-						// For initial load, wait a bit to ensure umami is loaded
-						if (isInitialLoad) {
-							await new Promise(resolve => setTimeout(resolve, 100));
-						}
-						
-						window.umamiTracking.trackingInProgress = true;
-						
-						try { 
-							if (window.umami && typeof window.umami.trackView === 'function') { 
-								console.log('[Umami] Tracking view:', currentPath, 'Event:', eventType);
-								window.umami.trackView(currentPath, document.referrer); 
-								// Mark as tracked for this session
-								sessionStorage.setItem(sessionKey, 'true');
-								window.umamiTracking.trackedPaths.add(currentPath);
-								window.umamiTracking.initialized = true;
-								console.log('[Umami] Successfully tracked:', currentPath);
-							} else {
-								console.warn('[Umami] Umami not available yet, retrying in 500ms');
-								// Retry after a short delay
-								setTimeout(() => {
-									window.umamiTracking.trackingInProgress = false;
-									track(eventType);
-								}, 500);
-								return;
+					// Start checking for Umami availability
+					document.addEventListener('DOMContentLoaded', waitForUmami);
+					
+					// Manual tracking function for custom events
+					window.trackUmamiEvent = function(eventName, eventData = {}) {
+						if (window.umamiReady && window.umami) {
+							try {
+								window.umami.track(eventName, eventData);
+								console.log('[Umami] Event tracked:', eventName, eventData);
+							} catch (e) {
+								console.warn('[Umami] Event tracking failed:', e);
 							}
-						} catch (e) {
-							console.warn('[Umami] Tracking error:', e);
-						} finally {
-							window.umamiTracking.trackingInProgress = false;
 						}
 					};
-					
-					// Track initial page load
-					document.addEventListener('DOMContentLoaded', () => {
-						console.log('[Umami] DOMContentLoaded event');
-						track('DOMContentLoaded');
-						isInitialLoad = false;
-					});
-					
-					// Track SPA navigations (only for non-initial loads)
-					document.addEventListener('astro:page-load', () => {
-						if (!isInitialLoad) {
-							console.log('[Umami] astro:page-load event');
-							track('astro:page-load');
-						}
-					});
-					
-					document.addEventListener('swup:contentReplaced', () => {
-						if (!isInitialLoad) {
-							console.log('[Umami] swup:contentReplaced event');
-							track('swup:contentReplaced');
-						}
-					});
 				</script>
 			</>
 		)}
