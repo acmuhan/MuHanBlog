@@ -117,7 +117,7 @@ const className = Astro.props.class;
 </div>
 
 <script is:inline define:vars={{ shouldShowStats: !hideStats }}>
-// Fetch page views for current post using our proxy API
+// Fetch page views for current post using the same logic as PostCard
 if (shouldShowStats) {
 (async () => {
   const viewsEl = document.getElementById('post-views');
@@ -128,8 +128,10 @@ if (shouldShowStats) {
   if (visitorsEl) visitorsEl.textContent = '加载中...';
   
   try {
-    const endpoint = `/api/stats?url=${encodeURIComponent(window.location.pathname)}`;
-    console.log('[Stats] Fetching stats from:', endpoint);
+    // Use the same URL format as PostCard for consistency
+    const currentPath = window.location.pathname;
+    const endpoint = `/api/stats?url=${encodeURIComponent(currentPath)}`;
+    console.log('[Stats] Fetching stats from (PostMeta):', endpoint);
     
     const res = await fetch(endpoint, {
       method: 'GET',
