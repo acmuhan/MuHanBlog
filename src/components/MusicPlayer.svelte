@@ -596,7 +596,7 @@ function handleDragEnd() {
 
 	document.removeEventListener("mousemove", handleDragMove);
 	document.removeEventListener("mouseup", handleDragEnd);
-	
+
 	// 拖拽结束后检查边界并回弹
 	setTimeout(() => {
 		ensurePlayerInSafeBounds("拖拽结束");
@@ -747,7 +747,7 @@ function handleResize() {
 			playerPosition.y = 80;
 		}
 	}
-	
+
 	// 窗口大小变化时确保播放器在安全边界内
 	setTimeout(() => {
 		ensurePlayerInSafeBounds("窗口大小变化");
@@ -819,8 +819,18 @@ function expandFromEdge() {
 
 // 点击展开播放器
 function toggleExpanded() {
+	// 如果是边缘最小化状态，先展开到正常位置
 	if (isMinimizedToEdge) {
 		expandFromEdge();
+	}
+
+	// 如果是自动收缩状态，也要先恢复
+	if (isAutoCollapsed) {
+		isAutoCollapsed = false;
+		// 确保播放器在可见位置
+		if (playerPosition.x < -100) {
+			playerPosition.x = 20;
+		}
 	}
 
 	const wasExpanded = playerState.isExpanded;
@@ -828,11 +838,21 @@ function toggleExpanded() {
 
 	// 展开时智能调整位置，确保不超出屏幕
 	if (playerState.isExpanded && !wasExpanded) {
+		// 强制确保播放器在可见区域内
+		ensurePlayerVisible();
 		adjustPositionForExpanded();
 		clearAutoCollapseTimer();
 	} else if (!playerState.isExpanded && isMobile) {
 		startAutoCollapseTimer();
 	}
+
+	console.log("切换展开状态:", {
+		wasExpanded,
+		nowExpanded: playerState.isExpanded,
+		isMinimizedToEdge,
+		isAutoCollapsed,
+		position: playerPosition,
+	});
 }
 
 // 展开时智能调整位置
@@ -891,13 +911,46 @@ function adjustPositionForExpanded() {
 	});
 }
 
+// 确保播放器在可见区域内
+function ensurePlayerVisible() {
+	if (typeof window === "undefined") return;
+
+	// 确保播放器不会完全隐藏在屏幕外
+	const minVisibleX = -200; // 允许部分隐藏，但要保留可点击区域
+	const maxX = window.innerWidth - 50; // 右侧至少保留50px可见
+	const minY = 10; // 顶部边距
+	const maxY = window.innerHeight - 100; // 底部至少保留100px
+
+	let adjusted = false;
+
+	if (playerPosition.x < minVisibleX) {
+		playerPosition.x = minVisibleX;
+		adjusted = true;
+	} else if (playerPosition.x > maxX) {
+		playerPosition.x = maxX;
+		adjusted = true;
+	}
+
+	if (playerPosition.y < minY) {
+		playerPosition.y = minY;
+		adjusted = true;
+	} else if (playerPosition.y > maxY) {
+		playerPosition.y = maxY;
+		adjusted = true;
+	}
+
+	if (adjusted) {
+		console.log("调整播放器位置到可见区域:", playerPosition);
+	}
+}
+
 // 确保播放器在安全边界内
 function ensurePlayerInSafeBounds(reason = "边界检查") {
 	if (typeof window === "undefined" || isDragging) return;
 
 	const playerWidth = playerState.isExpanded ? 360 : 280;
 	const playerHeight = playerState.isExpanded ? 600 : 80;
-	
+
 	let needsAdjustment = false;
 	let newX = playerPosition.x;
 	let newY = playerPosition.y;
@@ -936,7 +989,7 @@ function ensurePlayerInSafeBounds(reason = "边界检查") {
 			新位置: { x: newX, y: newY },
 			屏幕尺寸: { width: window.innerWidth, height: window.innerHeight },
 		});
-		
+
 		// 平滑回弹动画
 		playerPosition.x = newX;
 		playerPosition.y = newY;
@@ -946,7 +999,7 @@ function ensurePlayerInSafeBounds(reason = "边界检查") {
 // 启动边界检查定时器
 function startBoundaryCheck() {
 	if (boundaryCheckTimer) return;
-	
+
 	boundaryCheckTimer = setInterval(() => {
 		if (!isDragging && playerState.isVisible) {
 			ensurePlayerInSafeBounds("定时检查");
@@ -1181,7 +1234,8 @@ onDestroy(() => {
 			<!-- 展开按钮 -->
 			<button 
 				class="expand-btn btn-plain rounded-full w-8 h-8 flex items-center justify-center"
-				on:click={(e) => { e.stopPropagation(); playerState.isExpanded = true; }}
+				on:click={(e) => { e.stopPropagation(); toggleExpanded(); }}
+				title="展开播放器"
 			>
 				<Icon icon="material-symbols:expand-less" class="text-lg" />
 			</button>

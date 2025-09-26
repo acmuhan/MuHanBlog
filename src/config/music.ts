@@ -14,7 +14,7 @@ export const musicConfig: MusicConfig = {
 	// 使用多个API端点进行降级处理
 	apiBase:
 		typeof window !== "undefined" ? getApiBase() : "http://111.170.19.241:8001",
-	defaultPlaylistId: 123456,
+	defaultPlaylistId: 12291029891,
 	pageSize: 60, // 默认显示60首歌曲
 	enableKeyboardShortcuts: true,
 	enableAutoPlay: true,
