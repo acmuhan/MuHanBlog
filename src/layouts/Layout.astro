@@ -170,7 +170,7 @@ const bannerOffset =
 					defer
 					src={siteConfig.analytics.umami.src || 'https://umami.is/script.js'}
 					data-website-id={siteConfig.analytics.umami.websiteId}
-					data-domains={Astro.url.host}
+					data-domains="blog.muhan.wiki"
 					data-auto-track="false"
 					data-cache="true"
 					onload="console.log('[Umami] Script loaded successfully')"
@@ -178,16 +178,21 @@ const bannerOffset =
 				></script>
 				<script is:inline>
 					// Global Umami tracking state management
-					window.umamiTracking = window.umamiTracking || {
-						initialized: false,
-						trackingInProgress: false,
-						trackedPaths: new Set()
-					};
+					if (!window.umamiTracking) {
+						window.umamiTracking = {
+							initialized: false,
+							trackingInProgress: false,
+							trackedPaths: new Set(),
+							retryCount: 0,
+							maxRetries: 5
+						};
+					}
 					
-					const TRACKING_KEY = 'umami_tracked';
-					let isInitialLoad = true;
+					// Use a unique key to avoid conflicts
+					const UMAMI_TRACKING_KEY = 'umami_page_tracked';
+					let isPageInitialLoad = true;
 					
-					const track = async (eventType = 'unknown') => {
+					const trackPageView = async (eventType = 'unknown') => {
 						// Prevent concurrent tracking
 						if (window.umamiTracking.trackingInProgress) {
 							console.log('[Umami] Tracking already in progress, skipping');
@@ -195,38 +200,60 @@ const bannerOffset =
 						}
 						
 						const currentPath = location.pathname;
-						const sessionKey = `${TRACKING_KEY}_${currentPath}`;
+						const sessionKey = `${UMAMI_TRACKING_KEY}_${currentPath}`;
 						
 						// Check if already tracked in this session for this path
-						if (sessionStorage.getItem(sessionKey) || window.umamiTracking.trackedPaths.has(currentPath)) {
-							console.log('[Umami] Already tracked for this path in session:', currentPath);
+						if (window.umamiTracking.trackedPaths.has(currentPath)) {
+							console.log('[Umami] Already tracked for this path:', currentPath);
 							return;
 						}
 						
 						// For initial load, wait a bit to ensure umami is loaded
-						if (isInitialLoad) {
-							await new Promise(resolve => setTimeout(resolve, 100));
+						if (isPageInitialLoad) {
+							await new Promise(resolve => setTimeout(resolve, 200));
 						}
 						
 						window.umamiTracking.trackingInProgress = true;
 						
 						try { 
-							if (window.umami && typeof window.umami.trackView === 'function') { 
-								console.log('[Umami] Tracking view:', currentPath, 'Event:', eventType);
-								window.umami.trackView(currentPath, document.referrer); 
+							if (window.umami && typeof window.umami.track === 'function') { 
+								console.log('[Umami] Tracking page view:', currentPath, 'Event:', eventType);
+								
+								// Use the newer track API instead of trackView
+								await window.umami.track('pageview', {
+									url: currentPath,
+									referrer: document.referrer
+								});
+								
 								// Mark as tracked for this session
-								sessionStorage.setItem(sessionKey, 'true');
 								window.umamiTracking.trackedPaths.add(currentPath);
 								window.umamiTracking.initialized = true;
+								window.umamiTracking.retryCount = 0;
 								console.log('[Umami] Successfully tracked:', currentPath);
+							} else if (window.umami && typeof window.umami.trackView === 'function') {
+								// Fallback to older API
+								console.log('[Umami] Using legacy trackView API for:', currentPath);
+								window.umami.trackView(currentPath, document.referrer);
+								
+								window.umamiTracking.trackedPaths.add(currentPath);
+								window.umamiTracking.initialized = true;
+								window.umamiTracking.retryCount = 0;
+								console.log('[Umami] Successfully tracked (legacy):', currentPath);
 							} else {
-								console.warn('[Umami] Umami not available yet, retrying in 500ms');
-								// Retry after a short delay
-								setTimeout(() => {
-									window.umamiTracking.trackingInProgress = false;
-									track(eventType);
-								}, 500);
-								return;
+								// Retry with exponential backoff
+								if (window.umamiTracking.retryCount < window.umamiTracking.maxRetries) {
+									window.umamiTracking.retryCount++;
+									const delay = Math.min(1000 * Math.pow(2, window.umamiTracking.retryCount - 1), 5000);
+									console.warn(`[Umami] Umami not available yet, retrying in ${delay}ms (attempt ${window.umamiTracking.retryCount}/${window.umamiTracking.maxRetries})`);
+									
+									setTimeout(() => {
+										window.umamiTracking.trackingInProgress = false;
+										trackPageView(eventType);
+									}, delay);
+									return;
+								} else {
+									console.error('[Umami] Max retries reached, giving up on tracking');
+								}
 							}
 						} catch (e) {
 							console.warn('[Umami] Tracking error:', e);
@@ -238,22 +265,26 @@ const bannerOffset =
 					// Track initial page load
 					document.addEventListener('DOMContentLoaded', () => {
 						console.log('[Umami] DOMContentLoaded event');
-						track('DOMContentLoaded');
-						isInitialLoad = false;
+						trackPageView('DOMContentLoaded');
+						isPageInitialLoad = false;
 					});
 					
 					// Track SPA navigations (only for non-initial loads)
 					document.addEventListener('astro:page-load', () => {
-						if (!isInitialLoad) {
+						if (!isPageInitialLoad) {
 							console.log('[Umami] astro:page-load event');
-							track('astro:page-load');
+							// Clear the tracking for new page
+							window.umamiTracking.trackedPaths.clear();
+							trackPageView('astro:page-load');
 						}
 					});
 					
 					document.addEventListener('swup:contentReplaced', () => {
-						if (!isInitialLoad) {
+						if (!isPageInitialLoad) {
 							console.log('[Umami] swup:contentReplaced event');
-							track('swup:contentReplaced');
+							// Clear the tracking for new page
+							window.umamiTracking.trackedPaths.clear();
+							trackPageView('swup:contentReplaced');
 						}
 					});
 				</script>
