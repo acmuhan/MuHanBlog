@@ -8,11 +8,57 @@ let activeIndex = 0;
 let hasShown = false; // used by Layout.showBanner() removing classes on #banner
 let intervalId: number | null = null;
 
-const API_URL = "https://t.alcy.cc/ycy?json";
+// API URLs for different device types
+const PC_API_URL = "https://t.alcy.cc/ycy?json";
+const MOBILE_API_URL = "https://t.alcy.cc/mp";
+
+// Device detection
+function isMobileDevice(): boolean {
+	// Check screen size and user agent
+	const screenWidth = window.innerWidth;
+	const userAgent = navigator.userAgent.toLowerCase();
+
+	// Screen width check (typically mobile devices are <= 768px)
+	const isMobileScreen = screenWidth <= 768;
+
+	// User agent check for mobile devices
+	const isMobileUA =
+		/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+			userAgent,
+		);
+
+	return isMobileScreen || isMobileUA;
+}
+
+// Get appropriate API URL based on device type
+function getApiUrl(): string {
+	return isMobileDevice() ? MOBILE_API_URL : PC_API_URL;
+}
 
 async function fetchOneImageUrl(): Promise<string | null> {
 	try {
-		const url = `${API_URL}${API_URL.includes("?") ? "&" : "?"}ts=${Date.now()}_${Math.random().toString(36).slice(2)}`;
+		const apiUrl = getApiUrl();
+		const isMobile = isMobileDevice();
+
+		// For mobile API (mp), we need different URL construction
+		if (isMobile) {
+			const url = `${apiUrl}?ts=${Date.now()}_${Math.random().toString(36).slice(2)}`;
+			const res = await fetch(url, {
+				headers: { accept: "application/json, text/plain;q=0.9,*/*;q=0.1" },
+				cache: "no-store",
+			});
+
+			// Mobile API might return direct image URL or need different parsing
+			const text = await res.text();
+			const unescaped = text.replace(/\\\//g, "/");
+			const match = unescaped.match(
+				/https?:\/\/[^\s"']+\.(?:png|jpe?g|webp|gif)/i,
+			);
+			return match ? match[0] : null;
+		}
+
+		// PC API logic (original)
+		const url = `${apiUrl}${apiUrl.includes("?") ? "&" : "?"}ts=${Date.now()}_${Math.random().toString(36).slice(2)}`;
 		const res = await fetch(url, {
 			headers: { accept: "application/json, text/plain;q=0.9,*/*;q=0.1" },
 			cache: "no-store",
@@ -42,20 +88,34 @@ async function fetchThreeDistinct(): Promise<string[]> {
 
 function buildDirectUrls(n: number): string[] {
 	const arr: string[] = [];
+	const isMobile = isMobileDevice();
+	const baseUrl = isMobile ? "https://t.alcy.cc/mp" : "https://t.alcy.cc/ycy";
+
 	for (let i = 0; i < n; i++) {
 		const ts = Date.now() + i;
-		arr.push(
-			`https://t.alcy.cc/ycy?ts=${ts}_${Math.random().toString(36).slice(2)}`,
-		);
+		arr.push(`${baseUrl}?ts=${ts}_${Math.random().toString(36).slice(2)}`);
 	}
 	return arr;
 }
 
 onMount(async () => {
+	// Log device detection for debugging
+	const isMobile = isMobileDevice();
+	const apiUrl = getApiUrl();
+	console.log(
+		`[BannerCarousel] Device detection: ${isMobile ? "Mobile" : "Desktop"}`,
+	);
+	console.log(`[BannerCarousel] Using API: ${apiUrl}`);
+	console.log(`[BannerCarousel] Screen width: ${window.innerWidth}px`);
+
 	imageUrls = await fetchThreeDistinct();
 	if (imageUrls.length === 0) {
+		console.log("[BannerCarousel] Fallback to direct URLs");
 		imageUrls = buildDirectUrls(3);
 	}
+
+	console.log(`[BannerCarousel] Loaded ${imageUrls.length} images:`, imageUrls);
+
 	// start rotation only if we have at least 1
 	if (imageUrls.length > 0) {
 		activeIndex = 0;
