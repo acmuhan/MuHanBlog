@@ -1,7 +1,7 @@
 <script lang="ts">
 import Icon from "@iconify/svelte";
 import { onDestroy, onMount } from "svelte";
-import { slide, fade } from "svelte/transition";
+import { fade, slide } from "svelte/transition";
 import type { MusicPlayerState, Song } from "../config/music";
 import { musicConfig } from "../config/music";
 import { musicAPI } from "../utils/music-api";
@@ -31,6 +31,8 @@ let playerPosition = { x: 20, y: 20 }; // 距离右下角的像素距离
 
 // 移动端和边距把手状态
 let isMobile = false;
+let isAndroid = false;
+let isIOS = false;
 let isMinimizedToEdge = false;
 let windowWidth = 0;
 let windowHeight = 0;
@@ -115,11 +117,11 @@ function playPrevious() {
 	}
 
 	selectSong(newIndex);
-	
+
 	// 自动播放上一首
 	setTimeout(() => {
 		if (audioElement && playerState.currentSong) {
-			audioElement.play().catch(error => {
+			audioElement.play().catch((error) => {
 				console.log("自动播放失败:", error);
 			});
 		}
@@ -140,11 +142,11 @@ function playNext() {
 	}
 
 	selectSong(newIndex);
-	
+
 	// 自动播放下一首
 	setTimeout(() => {
 		if (audioElement && playerState.currentSong) {
-			audioElement.play().catch(error => {
+			audioElement.play().catch((error) => {
 				console.log("自动播放失败:", error);
 			});
 		}
@@ -370,24 +372,57 @@ async function startAutoPlay() {
 	}
 }
 
-// 移动端检测
+// 增强的移动端检测，特别针对安卓端
 function detectMobile() {
-	if (typeof window === "undefined") return false;
+	if (typeof window === "undefined")
+		return { isMobile: false, isAndroid: false, isIOS: false };
 
 	const userAgent =
 		navigator.userAgent ||
 		navigator.vendor ||
 		(window as Window & { opera?: string }).opera ||
 		"";
-	const isMobileUA =
-		/android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
-			userAgent,
-		);
+
+	// 详细的设备检测
+	const isAndroidUA = /android/i.test(userAgent);
+	const isIOSUA = /iphone|ipad|ipod/i.test(userAgent);
+	const isOtherMobileUA = /webos|blackberry|iemobile|opera mini/i.test(
+		userAgent,
+	);
+
 	const isTouchDevice =
 		"ontouchstart" in window || navigator.maxTouchPoints > 0;
 	const isSmallScreen = window.innerWidth <= 768;
 
-	return isMobileUA || (isTouchDevice && isSmallScreen);
+	// 安卓特殊检测
+	const isAndroidBrowser = isAndroidUA && /version\/\d+\.\d+/i.test(userAgent);
+	const isAndroidChrome = isAndroidUA && /chrome/i.test(userAgent);
+	const isAndroidWebView = isAndroidUA && /wv\)/i.test(userAgent);
+
+	const detectedAndroid =
+		isAndroidUA || isAndroidBrowser || isAndroidChrome || isAndroidWebView;
+	const detectedIOS = isIOSUA;
+	const detectedMobile =
+		detectedAndroid ||
+		detectedIOS ||
+		isOtherMobileUA ||
+		(isTouchDevice && isSmallScreen);
+
+	console.log("设备检测结果:", {
+		userAgent,
+		detectedMobile,
+		detectedAndroid,
+		detectedIOS,
+		isTouchDevice,
+		isSmallScreen,
+		windowSize: { width: window.innerWidth, height: window.innerHeight },
+	});
+
+	return {
+		isMobile: detectedMobile,
+		isAndroid: detectedAndroid,
+		isIOS: detectedIOS,
+	};
 }
 
 // 窗口大小变化处理
@@ -396,7 +431,11 @@ function handleResize() {
 
 	windowWidth = window.innerWidth;
 	windowHeight = window.innerHeight;
-	isMobile = detectMobile();
+
+	const deviceInfo = detectMobile();
+	isMobile = deviceInfo.isMobile;
+	isAndroid = deviceInfo.isAndroid;
+	isIOS = deviceInfo.isIOS;
 
 	// 移动端自动调整位置
 	if (isMobile) {
@@ -405,10 +444,25 @@ function handleResize() {
 			playerPosition.x = 10;
 			playerPosition.y = 10;
 		} else {
-			// 移动端收起时靠边
-			playerPosition.x = 10;
-			playerPosition.y = 80;
+			// 移动端收起时的位置调整
+			if (isAndroid) {
+				// 安卓端特殊处理，避免被系统UI遮挡
+				playerPosition.x = 15;
+				playerPosition.y = 100; // 安卓底部导航栏通常更高
+			} else if (isIOS) {
+				// iOS端处理
+				playerPosition.x = 15;
+				playerPosition.y = 90; // iOS底部安全区域
+			} else {
+				// 其他移动设备
+				playerPosition.x = 15;
+				playerPosition.y = 80;
+			}
 		}
+	} else if (!isDragging) {
+		// 桌面端恢复默认位置
+		playerPosition.x = 20;
+		playerPosition.y = 20;
 	}
 }
 
@@ -448,6 +502,20 @@ onMount(async () => {
 	// 初始化窗口大小和移动端检测
 	handleResize();
 	window.addEventListener("resize", handleResize);
+	
+	// 安卓端特殊处理
+	if (isAndroid) {
+		console.log("检测到安卓设备，应用特殊优化");
+		
+		// 强制显示播放器（某些安卓浏览器可能有显示问题）
+		setTimeout(() => {
+			playerState.isVisible = true;
+		}, 100);
+		
+		// 安卓端触摸事件优化
+		document.addEventListener("touchstart", () => {}, { passive: true });
+		document.addEventListener("touchmove", () => {}, { passive: true });
+	}
 
 	// 创建音频元素
 	audioElement = new Audio();
@@ -513,6 +581,8 @@ onDestroy(() => {
 	class:expanded={playerState.isExpanded}
 	class:dragging={isDragging}
 	class:mobile={isMobile}
+	class:android={isAndroid}
+	class:ios={isIOS}
 	class:minimized-to-edge={isMinimizedToEdge}
 	style="bottom: {playerPosition.y}px; right: {playerPosition.x}px;"
 >
@@ -901,18 +971,52 @@ onDestroy(() => {
 	&.mobile
 		max-width: calc(100vw - 20px)
 		min-width: 260px
-		
+
 		&.expanded
 			max-width: calc(100vw - 20px)
 			min-width: 300px
 			max-height: calc(100vh - 40px)
 			overflow-y: auto
-		
+
+		.mini-player
+			padding: 12px
+
+		.expanded-player
+			padding: 16px
+
+	// 安卓端特殊适配
+	&.android
+		// 安卓端特殊处理
+		.mini-player
+			min-height: 64px // 确保足够的触摸区域
+			padding: 14px
+			
+		.music-player-card
+			// 安卓端增强阴影效果，提高可见性
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1)
+			border: 1px solid rgba(255, 255, 255, 0.1)
+			
+		&.expanded
+			// 安卓端展开时的特殊处理
+			max-height: calc(100vh - 60px) // 为安卓导航栏留出更多空间
+			
+		// 安卓端按钮优化
+		.control-btn, .play-pause-btn
+			min-width: 44px // 安卓推荐的最小触摸目标
+			min-height: 44px
+			
+	// iOS端特殊适配
+	&.ios
 		.mini-player
 			padding: 12px
 			
-		.expanded-player
-			padding: 16px
+		&.expanded
+			max-height: calc(100vh - 50px) // iOS安全区域
+			
+		// iOS端按钮优化
+		.control-btn, .play-pause-btn
+			min-width: 40px
+			min-height: 40px
 	
 	// 边缘最小化状态
 	&.minimized-to-edge

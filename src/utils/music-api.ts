@@ -5,20 +5,29 @@ export class MusicAPI {
 	private apiBase: string;
 	private defaultPlaylistId: number;
 	private pageSize: number;
+	private fallbackEndpoints: string[];
 
 	constructor() {
 		this.apiBase = musicConfig.apiBase;
 		this.defaultPlaylistId = musicConfig.defaultPlaylistId;
 		this.pageSize = musicConfig.pageSize;
+
+		// 定义多个备用端点来解决HTTPS/HTTP问题
+		this.fallbackEndpoints = [
+			"https://103.40.14.239:12237", // HTTPS版本
+			"http://103.40.14.239:12237", // HTTP版本
+			// 可以添加更多备用端点
+		];
 	}
 
 	/**
-	 * 获取歌单数据
+	 * 获取歌单数据 - 支持多端点降级和HTTPS/HTTP解决方案
 	 * @param playlistId 歌单ID
 	 * @param page 页码
 	 * @param pageSize 每页数量
 	 * @param cookiesJson 自定义cookies
 	 * @param musicU 请求头
+	 * @param retries 重试次数
 	 */
 	async getPlaylist(
 		playlistId = this.defaultPlaylistId,
@@ -28,66 +37,194 @@ export class MusicAPI {
 		musicU?: string,
 		retries = 3,
 	): Promise<PlaylistResponse> {
-		for (let attempt = 1; attempt <= retries; attempt++) {
-			try {
-				const params = new URLSearchParams({
-					playlist_id: playlistId.toString(),
-					page: page.toString(),
-					page_size: Math.min(pageSize, 100).toString(),
-				});
+		// 尝试所有可用的端点
+		for (const endpoint of this.fallbackEndpoints) {
+			console.log(`尝试端点: ${endpoint}`);
 
-				if (cookiesJson) {
-					params.append("cookies_json", cookiesJson);
+			for (let attempt = 1; attempt <= retries; attempt++) {
+				try {
+					const result = await this.tryFetchPlaylist(
+						endpoint,
+						playlistId,
+						page,
+						pageSize,
+						cookiesJson,
+						musicU,
+					);
+
+					if (result) {
+						console.log(`成功从端点获取数据: ${endpoint}`);
+						return result;
+					}
+				} catch (error) {
+					console.error(
+						`端点 ${endpoint} 尝试 ${attempt}/${retries} 失败:`,
+						error,
+					);
+
+					// 如果是HTTPS混合内容错误，尝试其他解决方案
+					if (this.isMixedContentError(error)) {
+						console.log("检测到混合内容错误，尝试代理解决方案");
+						try {
+							const proxyResult = await this.tryProxyRequest(
+								endpoint,
+								playlistId,
+								page,
+								pageSize,
+								cookiesJson,
+								musicU,
+							);
+							if (proxyResult) {
+								console.log("代理请求成功");
+								return proxyResult;
+							}
+						} catch (proxyError) {
+							console.error("代理请求失败:", proxyError);
+						}
+					}
+
+					// 等待后重试
+					if (attempt < retries) {
+						await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+					}
 				}
-
-				const headers: Record<string, string> = {
-					Accept: "application/json",
-					"Content-Type": "application/json",
-				};
-
-				if (musicU) {
-					headers.music_u = musicU;
-				}
-
-				const controller = new AbortController();
-				const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
-
-				const response = await fetch(`${this.apiBase}/playlist?${params}`, {
-					method: "GET",
-					headers,
-					signal: controller.signal,
-					mode: "cors",
-				});
-
-				clearTimeout(timeoutId);
-
-				if (!response.ok) {
-					throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-				}
-
-				const data = (await response.json()) as PlaylistResponse;
-
-				if (data.code !== 200) {
-					throw new Error(`API Error: ${data.code}`);
-				}
-
-				return data;
-			} catch (error) {
-				console.error(`获取歌单失败 (尝试 ${attempt}/${retries}):`, error);
-
-				if (attempt === retries) {
-					// 最后一次尝试失败，返回模拟数据
-					console.warn("所有重试失败，返回模拟数据");
-					return this.getMockPlaylistData(page, pageSize);
-				}
-
-				// 等待一段时间后重试
-				await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
 			}
 		}
 
-		// 这行代码理论上不会执行到，但为了类型安全
+		// 所有端点都失败，返回模拟数据
+		console.warn("所有端点和解决方案都失败，返回模拟数据");
 		return this.getMockPlaylistData(page, pageSize);
+	}
+
+	/**
+	 * 尝试从指定端点获取歌单数据
+	 */
+	private async tryFetchPlaylist(
+		endpoint: string,
+		playlistId: number,
+		page: number,
+		pageSize: number,
+		cookiesJson?: string,
+		musicU?: string,
+	): Promise<PlaylistResponse | null> {
+		const params = new URLSearchParams({
+			playlist_id: playlistId.toString(),
+			page: page.toString(),
+			page_size: Math.min(pageSize, 100).toString(),
+		});
+
+		if (cookiesJson) {
+			params.append("cookies_json", cookiesJson);
+		}
+
+		const headers: Record<string, string> = {
+			Accept: "application/json",
+			"Content-Type": "application/json",
+		};
+
+		if (musicU) {
+			headers.music_u = musicU;
+		}
+
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
+
+		try {
+			const response = await fetch(`${endpoint}/playlist?${params}`, {
+				method: "GET",
+				headers,
+				signal: controller.signal,
+				mode: "cors",
+			});
+
+			clearTimeout(timeoutId);
+
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+			}
+
+			const data = (await response.json()) as PlaylistResponse;
+
+			if (data.code !== 200) {
+				throw new Error(`API Error: ${data.code}`);
+			}
+
+			return data;
+		} catch (error) {
+			clearTimeout(timeoutId);
+			throw error;
+		}
+	}
+
+	/**
+	 * 检查是否是混合内容错误
+	 */
+	private isMixedContentError(error: unknown): boolean {
+		const errorMessage = (error as Error)?.message?.toLowerCase() || "";
+		return (
+			errorMessage.includes("mixed content") ||
+			errorMessage.includes("blocked") ||
+			errorMessage.includes("cors") ||
+			(typeof window !== "undefined" &&
+				window.location.protocol === "https:" &&
+				errorMessage.includes("fetch"))
+		);
+	}
+
+	/**
+	 * 尝试使用代理服务解决HTTPS/HTTP混合内容问题
+	 */
+	private async tryProxyRequest(
+		endpoint: string,
+		playlistId: number,
+		page: number,
+		pageSize: number,
+		cookiesJson?: string,
+		_musicU?: string,
+	): Promise<PlaylistResponse | null> {
+		// 如果原端点是HTTP，尝试使用公共代理服务
+		if (endpoint.startsWith("http://")) {
+			const proxyServices = [
+				"https://api.allorigins.win/raw?url=",
+				"https://cors-anywhere.herokuapp.com/",
+				// 可以添加更多代理服务
+			];
+
+			for (const proxy of proxyServices) {
+				try {
+					const params = new URLSearchParams({
+						playlist_id: playlistId.toString(),
+						page: page.toString(),
+						page_size: Math.min(pageSize, 100).toString(),
+					});
+
+					if (cookiesJson) {
+						params.append("cookies_json", cookiesJson);
+					}
+
+					const proxyUrl = `${proxy}${encodeURIComponent(`${endpoint}/playlist?${params}`)}`;
+
+					const response = await fetch(proxyUrl, {
+						method: "GET",
+						headers: {
+							Accept: "application/json",
+						},
+					});
+
+					if (response.ok) {
+						const data = await response.json();
+						if (data.code === 200) {
+							console.log(`代理服务成功: ${proxy}`);
+							return data as PlaylistResponse;
+						}
+					}
+				} catch (error) {
+					console.error(`代理服务失败 ${proxy}:`, error);
+				}
+			}
+		}
+
+		return null;
 	}
 
 	/**
