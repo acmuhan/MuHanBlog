@@ -4,6 +4,7 @@ import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
 
 import ConfigCarrier from "@components/ConfigCarrier.astro";
+import MusicPlayer from "@components/MusicPlayer.svelte";
 import { profileConfig, siteConfig } from "@/config";
 import {
 	AUTO_MODE,
@@ -169,39 +170,91 @@ const bannerOffset =
 					src={siteConfig.analytics.umami.src || 'https://umami.is/script.js'}
 					data-website-id={siteConfig.analytics.umami.websiteId}
 					data-domains={Astro.url.host}
-					data-auto-track="true"
+					data-auto-track="false"
 					data-cache="true"
+					onload="console.log('[Umami] Script loaded successfully')"
+					onerror="console.error('[Umami] Failed to load script')"
 				></script>
 				<script is:inline>
-					// Prevent duplicate tracking with session storage
-					const TRACKING_KEY = 'umami_tracked';
+					// Global Umami tracking state management
+					window.umamiTracking = window.umamiTracking || {
+						initialized: false,
+						trackingInProgress: false,
+						trackedPaths: new Set()
+					};
 					
-					const track = () => {
-						const currentPath = location.pathname;
-						const sessionKey = `${TRACKING_KEY}_${currentPath}`;
-						
-						// Check if already tracked in this session
-						if (sessionStorage.getItem(sessionKey)) {
+					const TRACKING_KEY = 'umami_tracked';
+					let isInitialLoad = true;
+					
+					const track = async (eventType = 'unknown') => {
+						// Prevent concurrent tracking
+						if (window.umamiTracking.trackingInProgress) {
+							console.log('[Umami] Tracking already in progress, skipping');
 							return;
 						}
 						
+						const currentPath = location.pathname;
+						const sessionKey = `${TRACKING_KEY}_${currentPath}`;
+						
+						// Check if already tracked in this session for this path
+						if (sessionStorage.getItem(sessionKey) || window.umamiTracking.trackedPaths.has(currentPath)) {
+							console.log('[Umami] Already tracked for this path in session:', currentPath);
+							return;
+						}
+						
+						// For initial load, wait a bit to ensure umami is loaded
+						if (isInitialLoad) {
+							await new Promise(resolve => setTimeout(resolve, 100));
+						}
+						
+						window.umamiTracking.trackingInProgress = true;
+						
 						try { 
 							if (window.umami && typeof window.umami.trackView === 'function') { 
+								console.log('[Umami] Tracking view:', currentPath, 'Event:', eventType);
 								window.umami.trackView(currentPath, document.referrer); 
 								// Mark as tracked for this session
 								sessionStorage.setItem(sessionKey, 'true');
-							} 
+								window.umamiTracking.trackedPaths.add(currentPath);
+								window.umamiTracking.initialized = true;
+								console.log('[Umami] Successfully tracked:', currentPath);
+							} else {
+								console.warn('[Umami] Umami not available yet, retrying in 500ms');
+								// Retry after a short delay
+								setTimeout(() => {
+									window.umamiTracking.trackingInProgress = false;
+									track(eventType);
+								}, 500);
+								return;
+							}
 						} catch (e) {
-							console.warn('Umami tracking error:', e);
+							console.warn('[Umami] Tracking error:', e);
+						} finally {
+							window.umamiTracking.trackingInProgress = false;
 						}
 					};
 					
-					// Track only once on initial load
-					document.addEventListener('DOMContentLoaded', track);
+					// Track initial page load
+					document.addEventListener('DOMContentLoaded', () => {
+						console.log('[Umami] DOMContentLoaded event');
+						track('DOMContentLoaded');
+						isInitialLoad = false;
+					});
 					
-					// Track SPA navigations
-					document.addEventListener('astro:page-load', track);
-					document.addEventListener('swup:contentReplaced', track);
+					// Track SPA navigations (only for non-initial loads)
+					document.addEventListener('astro:page-load', () => {
+						if (!isInitialLoad) {
+							console.log('[Umami] astro:page-load event');
+							track('astro:page-load');
+						}
+					});
+					
+					document.addEventListener('swup:contentReplaced', () => {
+						if (!isInitialLoad) {
+							console.log('[Umami] swup:contentReplaced event');
+							track('swup:contentReplaced');
+						}
+					});
 				</script>
 			</>
 		)}
@@ -212,6 +265,9 @@ const bannerOffset =
 	>
 		<ConfigCarrier></ConfigCarrier>
 		<slot />
+		
+		<!-- 音乐播放器 -->
+		<MusicPlayer client:only="svelte" />
 
 		<!-- increase the page height during page transition to prevent the scrolling animation from jumping -->
 		<div id="page-height-extend" class="hidden h-[300vh]"></div>

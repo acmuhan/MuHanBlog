@@ -139,9 +139,35 @@ export default async function onRequest(context) {
 			data = JSON.parse(raw);
 		} catch {}
 
-		const toNumber = (v) => (typeof v === "number" ? v : Number(v?.value || 0));
-		const pageviews = toNumber(data?.pageviews);
-		const visitors = toNumber(data?.visitors);
+		// Handle different response formats from Umami API
+		const toNumber = (v) => {
+			if (typeof v === "number") return v;
+			if (v?.value !== undefined) return Number(v.value);
+			if (v?.count !== undefined) return Number(v.count);
+			return Number(v || 0);
+		};
+
+		// Extract pageviews and visitors from different possible response formats
+		let pageviews = 0;
+		let visitors = 0;
+
+		if (data?.pageviews !== undefined) {
+			pageviews = toNumber(data.pageviews);
+		} else if (data?.stats?.pageviews !== undefined) {
+			pageviews = toNumber(data.stats.pageviews);
+		} else if (Array.isArray(data) && data.length > 0) {
+			// Handle array response format
+			pageviews = data.reduce((sum, item) => sum + toNumber(item.pageviews), 0);
+		}
+
+		if (data?.visitors !== undefined) {
+			visitors = toNumber(data.visitors);
+		} else if (data?.stats?.visitors !== undefined) {
+			visitors = toNumber(data.stats.visitors);
+		} else if (Array.isArray(data) && data.length > 0) {
+			// Handle array response format
+			visitors = data.reduce((sum, item) => sum + toNumber(item.visitors), 0);
+		}
 
 		const payload = { pageviews, visitors };
 		if (debug)
@@ -152,6 +178,8 @@ export default async function onRequest(context) {
 				url: targetUrl,
 				rawData: data,
 			});
+
+		console.log("[stats] Final payload:", payload);
 		return new Response(JSON.stringify(payload), {
 			status: 200,
 			headers: { "content-type": "application/json" },

@@ -120,21 +120,69 @@ const className = Astro.props.class;
 // Fetch page views for current post using our proxy API
 if (shouldShowStats) {
 (async () => {
+  const viewsEl = document.getElementById('post-views');
+  const visitorsEl = document.getElementById('post-visitors');
+  
+  // Show loading state
+  if (viewsEl) viewsEl.textContent = '加载中...';
+  if (visitorsEl) visitorsEl.textContent = '加载中...';
+  
   try {
     const endpoint = `/api/stats?url=${encodeURIComponent(window.location.pathname)}`;
-    const res = await fetch(endpoint);
-    if (!res.ok) return;
+    console.log('[Stats] Fetching stats from:', endpoint);
+    
+    const res = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!res.ok) {
+      console.warn('[Stats] API request failed:', res.status, res.statusText);
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+    
     const data = await res.json();
+    console.log('[Stats] Received data:', data);
+    
+    if (data.error) {
+      console.warn('[Stats] API returned error:', data.error);
+      throw new Error(data.error);
+    }
 
     const pv = Number(data?.pageviews || 0);
     const uv = Number(data?.visitors || 0);
 
-    const viewsEl = document.getElementById('post-views');
-    if (viewsEl) viewsEl.textContent = `${pv} 次浏览`;
+    if (viewsEl) {
+      viewsEl.textContent = pv > 0 ? `${pv} 次浏览` : '暂无数据';
+      viewsEl.classList.remove('text-50');
+      viewsEl.classList.add(pv > 0 ? 'text-90' : 'text-60');
+    }
 
-    const visitorsEl = document.getElementById('post-visitors');
-    if (visitorsEl) visitorsEl.textContent = `${uv} 位访客`;
-  } catch (_) {}
+    if (visitorsEl) {
+      visitorsEl.textContent = uv > 0 ? `${uv} 位访客` : '暂无数据';
+      visitorsEl.classList.remove('text-50');
+      visitorsEl.classList.add(uv > 0 ? 'text-90' : 'text-60');
+    }
+    
+    console.log('[Stats] Successfully updated stats:', { pageviews: pv, visitors: uv });
+  } catch (error) {
+    console.error('[Stats] Failed to fetch stats:', error);
+    
+    // Show error state
+    if (viewsEl) {
+      viewsEl.textContent = '--';
+      viewsEl.classList.remove('text-50');
+      viewsEl.classList.add('text-60');
+    }
+    if (visitorsEl) {
+      visitorsEl.textContent = '--';
+      visitorsEl.classList.remove('text-50');
+      visitorsEl.classList.add('text-60');
+    }
+  }
 })();
 }
 </script>
