@@ -56,6 +56,11 @@ let animationFrame: number | undefined;
 // 播放控制锁，防止多个播放操作同时进行
 let isPlayOperationInProgress = false;
 
+// 边界检测和回弹系统
+let boundaryCheckTimer: ReturnType<typeof setInterval> | undefined;
+const BOUNDARY_CHECK_INTERVAL = 2000; // 每2秒检查一次边界
+const SAFE_MARGIN = 50; // 安全边距，超出此范围会触发回弹
+
 // 分页控制
 let pageSize = musicConfig.pageSize;
 let pageSizeInput = pageSize;
@@ -551,6 +556,8 @@ function handleDragStart(event: MouseEvent) {
 
 	isDragging = true;
 	const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+
+	// 计算鼠标相对于播放器的偏移量
 	dragOffset.x = event.clientX - rect.left;
 	dragOffset.y = event.clientY - rect.top;
 
@@ -562,12 +569,25 @@ function handleDragStart(event: MouseEvent) {
 function handleDragMove(event: MouseEvent) {
 	if (!isDragging || typeof window === "undefined") return;
 
-	const newX = window.innerWidth - (event.clientX - dragOffset.x + 400); // 400是播放器宽度
-	const newY = window.innerHeight - (event.clientY - dragOffset.y + 200); // 200是播放器高度
+	// 获取播放器实际尺寸
+	const playerWidth = playerState.isExpanded ? 360 : 280;
+	const playerHeight = playerState.isExpanded ? 600 : 80;
+
+	// 计算新位置（从右下角定位）
+	const newRightDistance =
+		window.innerWidth - event.clientX + dragOffset.x - playerWidth;
+	const newBottomDistance =
+		window.innerHeight - event.clientY + dragOffset.y - playerHeight;
 
 	// 限制在屏幕范围内
-	playerPosition.x = Math.max(20, Math.min(window.innerWidth - 400, newX));
-	playerPosition.y = Math.max(20, Math.min(window.innerHeight - 200, newY));
+	playerPosition.x = Math.max(
+		10,
+		Math.min(window.innerWidth - playerWidth - 10, newRightDistance),
+	);
+	playerPosition.y = Math.max(
+		10,
+		Math.min(window.innerHeight - playerHeight - 10, newBottomDistance),
+	);
 }
 
 function handleDragEnd() {
@@ -576,6 +596,11 @@ function handleDragEnd() {
 
 	document.removeEventListener("mousemove", handleDragMove);
 	document.removeEventListener("mouseup", handleDragEnd);
+	
+	// 拖拽结束后检查边界并回弹
+	setTimeout(() => {
+		ensurePlayerInSafeBounds("拖拽结束");
+	}, 100);
 }
 
 // 安全播放函数，防止多个播放操作同时进行
@@ -687,33 +712,46 @@ function handleResize() {
 	isAndroid = deviceInfo.isAndroid;
 	isIOS = deviceInfo.isIOS;
 
-	// 移动端自动调整位置
-	if (isMobile) {
-		if (playerState.isExpanded) {
-			// 移动端展开时占据更多空间
-			playerPosition.x = 10;
-			playerPosition.y = 10;
+	// 确保播放器位置在屏幕范围内
+	const playerWidth = playerState.isExpanded ? 360 : 280;
+	const playerHeight = playerState.isExpanded ? 600 : 80;
+
+	// 限制播放器位置不超出屏幕
+	playerPosition.x = Math.max(
+		10,
+		Math.min(windowWidth - playerWidth - 10, playerPosition.x),
+	);
+	playerPosition.y = Math.max(
+		10,
+		Math.min(windowHeight - playerHeight - 10, playerPosition.y),
+	);
+
+	// 移动端特殊处理（仅在没有用户自定义位置时）
+	if (
+		isMobile &&
+		!isDragging &&
+		playerPosition.x === 20 &&
+		playerPosition.y === 20
+	) {
+		if (isAndroid) {
+			// 安卓端特殊处理，避免被系统UI遮挡
+			playerPosition.x = 15;
+			playerPosition.y = 100; // 安卓底部导航栏通常更高
+		} else if (isIOS) {
+			// iOS端处理
+			playerPosition.x = 15;
+			playerPosition.y = 90; // iOS底部安全区域
 		} else {
-			// 移动端收起时的位置调整
-			if (isAndroid) {
-				// 安卓端特殊处理，避免被系统UI遮挡
-				playerPosition.x = 15;
-				playerPosition.y = 100; // 安卓底部导航栏通常更高
-			} else if (isIOS) {
-				// iOS端处理
-				playerPosition.x = 15;
-				playerPosition.y = 90; // iOS底部安全区域
-			} else {
-				// 其他移动设备
-				playerPosition.x = 15;
-				playerPosition.y = 80;
-			}
+			// 其他移动设备
+			playerPosition.x = 15;
+			playerPosition.y = 80;
 		}
-	} else if (!isDragging) {
-		// 桌面端恢复默认位置
-		playerPosition.x = 20;
-		playerPosition.y = 20;
 	}
+	
+	// 窗口大小变化时确保播放器在安全边界内
+	setTimeout(() => {
+		ensurePlayerInSafeBounds("窗口大小变化");
+	}, 100);
 }
 
 // 启动自动收缩定时器（仅移动端）
@@ -784,13 +822,143 @@ function toggleExpanded() {
 	if (isMinimizedToEdge) {
 		expandFromEdge();
 	}
+
+	const wasExpanded = playerState.isExpanded;
 	playerState.isExpanded = !playerState.isExpanded;
 
-	// 展开时清除自动收缩定时器，收起时重新启动
-	if (playerState.isExpanded) {
+	// 展开时智能调整位置，确保不超出屏幕
+	if (playerState.isExpanded && !wasExpanded) {
+		adjustPositionForExpanded();
 		clearAutoCollapseTimer();
-	} else if (isMobile) {
+	} else if (!playerState.isExpanded && isMobile) {
 		startAutoCollapseTimer();
+	}
+}
+
+// 展开时智能调整位置
+function adjustPositionForExpanded() {
+	if (typeof window === "undefined") return;
+
+	const expandedWidth = 360;
+	const expandedHeight = 600;
+	const margin = 20; // 边距
+
+	// 获取安全显示区域
+	const safeAreaWidth = window.innerWidth - margin * 2;
+	const safeAreaHeight = window.innerHeight - margin * 2;
+
+	// 如果屏幕太小，优先保证播放器能完整显示
+	if (safeAreaWidth < expandedWidth || safeAreaHeight < expandedHeight) {
+		// 屏幕太小时，居中显示并允许滚动
+		playerPosition.x = Math.max(5, (window.innerWidth - expandedWidth) / 2);
+		playerPosition.y = Math.max(5, (window.innerHeight - expandedHeight) / 2);
+		console.log("屏幕空间不足，居中显示播放器");
+		return;
+	}
+
+	// 正常情况下的智能调整
+	let newX = playerPosition.x;
+	let newY = playerPosition.y;
+
+	// 检查右侧边界
+	if (window.innerWidth - newX < expandedWidth + margin) {
+		newX = window.innerWidth - expandedWidth - margin;
+	}
+
+	// 检查左侧边界
+	if (newX < margin) {
+		newX = margin;
+	}
+
+	// 检查底部边界
+	if (window.innerHeight - newY < expandedHeight + margin) {
+		newY = window.innerHeight - expandedHeight - margin;
+	}
+
+	// 检查顶部边界
+	if (newY < margin) {
+		newY = margin;
+	}
+
+	// 更新位置
+	playerPosition.x = newX;
+	playerPosition.y = newY;
+
+	console.log("展开播放器，智能调整位置:", {
+		原位置: { x: playerPosition.x, y: playerPosition.y },
+		新位置: { x: newX, y: newY },
+		屏幕尺寸: { width: window.innerWidth, height: window.innerHeight },
+	});
+}
+
+// 确保播放器在安全边界内
+function ensurePlayerInSafeBounds(reason = "边界检查") {
+	if (typeof window === "undefined" || isDragging) return;
+
+	const playerWidth = playerState.isExpanded ? 360 : 280;
+	const playerHeight = playerState.isExpanded ? 600 : 80;
+	
+	let needsAdjustment = false;
+	let newX = playerPosition.x;
+	let newY = playerPosition.y;
+
+	// 检查是否超出安全边界
+	// 右侧边界检查（考虑播放器从右下角定位）
+	const rightEdge = window.innerWidth - newX;
+	if (rightEdge < playerWidth - SAFE_MARGIN) {
+		newX = window.innerWidth - playerWidth - 20;
+		needsAdjustment = true;
+	}
+
+	// 左侧边界检查
+	if (newX > window.innerWidth - SAFE_MARGIN) {
+		newX = window.innerWidth - playerWidth - 20;
+		needsAdjustment = true;
+	}
+
+	// 底部边界检查（考虑播放器从右下角定位）
+	const bottomEdge = window.innerHeight - newY;
+	if (bottomEdge < playerHeight - SAFE_MARGIN) {
+		newY = window.innerHeight - playerHeight - 20;
+		needsAdjustment = true;
+	}
+
+	// 顶部边界检查
+	if (newY > window.innerHeight - SAFE_MARGIN) {
+		newY = window.innerHeight - playerHeight - 20;
+		needsAdjustment = true;
+	}
+
+	// 如果需要调整，执行回弹动画
+	if (needsAdjustment) {
+		console.log(`播放器超出安全边界，执行回弹 (${reason}):`, {
+			原位置: { x: playerPosition.x, y: playerPosition.y },
+			新位置: { x: newX, y: newY },
+			屏幕尺寸: { width: window.innerWidth, height: window.innerHeight },
+		});
+		
+		// 平滑回弹动画
+		playerPosition.x = newX;
+		playerPosition.y = newY;
+	}
+}
+
+// 启动边界检查定时器
+function startBoundaryCheck() {
+	if (boundaryCheckTimer) return;
+	
+	boundaryCheckTimer = setInterval(() => {
+		if (!isDragging && playerState.isVisible) {
+			ensurePlayerInSafeBounds("定时检查");
+		}
+	}, BOUNDARY_CHECK_INTERVAL);
+}
+
+// 停止边界检查定时器
+function stopBoundaryCheck() {
+	if (boundaryCheckTimer) {
+		clearInterval(boundaryCheckTimer);
+		boundaryCheckTimer = undefined;
 	}
 }
 
@@ -863,6 +1031,9 @@ onMount(async () => {
 		startAutoCollapseTimer();
 	}
 
+	// 启动边界检查定时器
+	startBoundaryCheck();
+
 	// 添加全局事件监听器
 	document.addEventListener("keydown", handleKeydown);
 	document.addEventListener("mousemove", handleProgressMouseMove);
@@ -895,6 +1066,9 @@ onDestroy(() => {
 
 	// 清理自动收缩定时器
 	clearAutoCollapseTimer();
+
+	// 停止边界检查定时器
+	stopBoundaryCheck();
 
 	// 移除事件监听器
 	window.removeEventListener("resize", handleResize);
@@ -1593,13 +1767,13 @@ onDestroy(() => {
 // 响应式设计
 @media (max-width: 768px)
 	.music-player-container
-		bottom: 10vh !important
-		right: 5vw !important
-		left: 5vw !important
-		max-width: none
+		max-width: calc(100vw - 20px)
 		
 		&.expanded
 			min-width: auto
+			// 展开时确保不会超出屏幕
+			max-height: calc(100vh - 20px)
+			overflow-y: auto
 
 // 动画
 .music-player-container
