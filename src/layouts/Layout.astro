@@ -177,41 +177,53 @@ const bannerOffset =
 					onerror="console.error('[Umami] Failed to load script')"
 				></script>
 				<script is:inline>
-					// Simplified Umami tracking for manual events
-					window.umamiReady = false;
-					let retryCount = 0;
-					const maxRetries = 20;
-					
-					function waitForUmami() {
-						if (window.umami && typeof window.umami.track === 'function') {
-							window.umamiReady = true;
-							console.log('[Umami] Ready for tracking');
-							return true;
+					// Initialize Umami tracking only once
+					if (typeof window.umamiInitialized === 'undefined') {
+						window.umamiInitialized = true;
+						window.umamiReady = false;
+						
+						function waitForUmami() {
+							let retryCount = 0;
+							const maxRetries = 20;
+							
+							function checkUmami() {
+								if (window.umami && typeof window.umami.track === 'function') {
+									window.umamiReady = true;
+									console.log('[Umami] Ready for tracking');
+									return true;
+								}
+								
+								if (retryCount < maxRetries) {
+									retryCount++;
+									setTimeout(checkUmami, 500);
+								} else {
+									console.warn('[Umami] Failed to initialize after', maxRetries, 'attempts');
+								}
+								return false;
+							}
+							
+							checkUmami();
 						}
 						
-						if (retryCount < maxRetries) {
-							retryCount++;
-							setTimeout(waitForUmami, 500);
+						// Start checking for Umami availability
+						if (document.readyState === 'loading') {
+							document.addEventListener('DOMContentLoaded', waitForUmami);
 						} else {
-							console.warn('[Umami] Failed to initialize after', maxRetries, 'attempts');
+							waitForUmami();
 						}
-						return false;
-					}
-					
-					// Start checking for Umami availability
-					document.addEventListener('DOMContentLoaded', waitForUmami);
-					
-					// Manual tracking function for custom events
-					window.trackUmamiEvent = function(eventName, eventData = {}) {
-						if (window.umamiReady && window.umami) {
-							try {
-								window.umami.track(eventName, eventData);
-								console.log('[Umami] Event tracked:', eventName, eventData);
-							} catch (e) {
-								console.warn('[Umami] Event tracking failed:', e);
+						
+						// Manual tracking function for custom events
+						window.trackUmamiEvent = function(eventName, eventData = {}) {
+							if (window.umamiReady && window.umami) {
+								try {
+									window.umami.track(eventName, eventData);
+									console.log('[Umami] Event tracked:', eventName, eventData);
+								} catch (e) {
+									console.warn('[Umami] Event tracking failed:', e);
+								}
 							}
-						}
-					};
+						};
+					}
 				</script>
 			</>
 		)}
