@@ -12,11 +12,12 @@ export class MusicAPI {
 		this.defaultPlaylistId = musicConfig.defaultPlaylistId;
 		this.pageSize = musicConfig.pageSize;
 
-		// 定义备用端点，优先使用新API
+		// 定义备用端点，优先使用稳定API
 		this.fallbackEndpoints = [
-			"http://111.170.19.241:8002", // 新API HTTP版本（优先）
-			"https://111.170.19.241:8002", // 新API HTTPS版本
-			// 减少备用端点数量，避免过多重试
+			"https://netease-cloud-music-api-psi-six.vercel.app", // Vercel部署的网易云API
+			"https://music-api.heheda.top", // 备用API
+			"http://111.170.19.241:8002", // 原API HTTP版本
+			"https://111.170.19.241:8002", // 原API HTTPS版本
 		];
 	}
 
@@ -249,11 +250,27 @@ export class MusicAPI {
 		cookiesJson?: string,
 		musicU?: string,
 	): Promise<PlaylistResponse | null> {
-		const params = new URLSearchParams({
-			playlist_id: playlistId.toString(),
-			page: page.toString(),
-			page_size: Math.min(pageSize, 100).toString(),
-		});
+		// 根据不同的API端点使用不同的请求格式
+		let url: string;
+		let params: URLSearchParams;
+
+		if (endpoint.includes("vercel.app") || endpoint.includes("heheda.top")) {
+			// 标准网易云API格式
+			params = new URLSearchParams({
+				id: playlistId.toString(),
+				limit: Math.min(pageSize, 100).toString(),
+				offset: ((page - 1) * pageSize).toString(),
+			});
+			url = `${endpoint}/playlist/track/all?${params}`;
+		} else {
+			// 原有API格式
+			params = new URLSearchParams({
+				playlist_id: playlistId.toString(),
+				page: page.toString(),
+				page_size: Math.min(pageSize, 100).toString(),
+			});
+			url = `${endpoint}/playlist?${params}`;
+		}
 
 		if (cookiesJson) {
 			params.append("cookies_json", cookiesJson);
@@ -272,7 +289,7 @@ export class MusicAPI {
 		const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
 
 		try {
-			const response = await fetch(`${endpoint}/playlist?${params}`, {
+			const response = await fetch(url, {
 				method: "GET",
 				headers,
 				signal: controller.signal,
@@ -285,13 +302,42 @@ export class MusicAPI {
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 			}
 
-			const data = (await response.json()) as PlaylistResponse;
+			const data = await response.json();
 
-			if (data.code !== 200) {
-				throw new Error(`API Error: ${data.code}`);
+			// 处理不同API的响应格式
+			if (endpoint.includes("vercel.app") || endpoint.includes("heheda.top")) {
+				// 标准网易云API响应格式转换
+				if (data.code === 200 && data.songs) {
+					const convertedData: PlaylistResponse = {
+						code: 200,
+						playlist_id: playlistId,
+						playlist_name: "网易云歌单",
+						songs: data.songs.map((song: any) => ({
+							id: song.id,
+							name: song.name,
+							artist: song.ar?.[0]?.name || "未知艺术家",
+							url: song.url || "",
+							pic_url: song.al?.picUrl || "",
+						})),
+						pagination: {
+							page,
+							page_size: pageSize,
+							total: data.songs.length,
+							total_pages: Math.ceil(data.songs.length / pageSize),
+							has_next: data.more || false,
+							has_prev: page > 1,
+						},
+					};
+					return convertedData;
+				}
+			} else {
+				// 原有API格式
+				if (data.code === 200) {
+					return data as PlaylistResponse;
+				}
 			}
 
-			return data;
+			throw new Error(`API Error: ${data.code || "Unknown error"}`);
 		} catch (error) {
 			clearTimeout(timeoutId);
 			throw error;

@@ -82,53 +82,179 @@ const isGiscusEnabled =
 
 {!isGiscusEnabled && (
 	<div class:list={["comment-placeholder", className]} style={style}>
-		<div class="text-center py-8 text-black/50 dark:text-white/50">
-			<p class="mb-2">💬 评论系统未配置</p>
-			<p class="text-sm">请在配置文件中设置Giscus参数以启用评论功能</p>
+		<div class="placeholder-content">
+			<div class="placeholder-icon">💬</div>
+			<div class="placeholder-title">评论系统未配置</div>
+			<div class="placeholder-desc">请在配置文件中设置Giscus参数以启用评论功能</div>
 		</div>
 	</div>
 )}
 
 <style>
 	.giscus-container {
-		@apply w-full mt-8 mb-4;
+		@apply w-full mt-12 mb-8;
+		position: relative;
 	}
 
 	.giscus-wrapper {
-		@apply rounded-xl overflow-hidden;
+		@apply rounded-3xl overflow-hidden shadow-lg;
 		background: var(--card-bg);
 		border: 1px solid var(--line-divider);
+		backdrop-filter: blur(10px);
+		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		position: relative;
+	}
+
+	.giscus-wrapper::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 4px;
+		background: linear-gradient(90deg, 
+			oklch(0.70 0.14 var(--hue)), 
+			oklch(0.75 0.12 calc(var(--hue) + 60)), 
+			oklch(0.70 0.14 calc(var(--hue) + 120))
+		);
+		border-radius: 24px 24px 0 0;
+	}
+
+	.giscus-wrapper:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+		border-color: oklch(0.70 0.14 var(--hue));
 	}
 
 	.comment-placeholder {
-		@apply w-full mt-8 mb-4 rounded-xl;
+		@apply w-full mt-12 mb-8 rounded-3xl shadow-lg;
 		background: var(--card-bg);
 		border: 1px solid var(--line-divider);
+		backdrop-filter: blur(10px);
+		transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		position: relative;
 	}
 
-	/* Giscus样式调整 */
+	.comment-placeholder::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 4px;
+		background: linear-gradient(90deg, 
+			oklch(0.60 0.10 var(--hue)), 
+			oklch(0.65 0.08 calc(var(--hue) + 60)), 
+			oklch(0.60 0.10 calc(var(--hue) + 120))
+		);
+		border-radius: 24px 24px 0 0;
+		opacity: 0.6;
+	}
+
+	.comment-placeholder .placeholder-content {
+		@apply px-8 py-12 text-center;
+	}
+
+	.comment-placeholder .placeholder-icon {
+		@apply text-4xl mb-4 opacity-60;
+	}
+
+	.comment-placeholder .placeholder-title {
+		@apply text-lg font-medium mb-2 text-black/70 dark:text-white/70;
+	}
+
+	.comment-placeholder .placeholder-desc {
+		@apply text-sm text-black/50 dark:text-white/50;
+	}
+
+	/* Giscus样式调整 - Material Design 3风格 */
 	:global(.giscus) {
 		@apply w-full;
+		padding: 1.5rem;
 	}
 
 	:global(.giscus-frame) {
 		@apply w-full border-0;
-		min-height: 200px;
+		min-height: 280px;
+		border-radius: 0 0 24px 24px;
+		background: transparent;
 	}
 
 	/* 响应式设计 */
 	@media (max-width: 768px) {
 		.giscus-container {
-			@apply mx-0;
+			@apply mx-0 mt-8 mb-6;
+		}
+		
+		.giscus-wrapper {
+			@apply rounded-2xl;
+		}
+		
+		.giscus-wrapper::before {
+			border-radius: 16px 16px 0 0;
+		}
+		
+		:global(.giscus) {
+			padding: 1rem;
+		}
+		
+		:global(.giscus-frame) {
+			min-height: 240px;
+			border-radius: 0 0 16px 16px;
 		}
 	}
 
 	/* 深色模式适配 */
 	:global([data-theme="dark"]) .giscus-wrapper {
-		border-color: rgba(255, 255, 255, 0.1);
+		border-color: rgba(255, 255, 255, 0.12);
+		box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.3);
+	}
+
+	:global([data-theme="dark"]) .giscus-wrapper:hover {
+		box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.4);
+		border-color: oklch(0.75 0.14 var(--hue));
 	}
 
 	:global([data-theme="light"]) .giscus-wrapper {
-		border-color: rgba(0, 0, 0, 0.1);
+		border-color: rgba(0, 0, 0, 0.08);
+		box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.08);
+	}
+
+	:global([data-theme="light"]) .giscus-wrapper:hover {
+		box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.12);
+		border-color: oklch(0.70 0.14 var(--hue));
+	}
+
+	/* 加载动画 */
+	@keyframes giscus-fade-in {
+		from {
+			opacity: 0;
+			transform: translateY(20px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	.giscus-container {
+		animation: giscus-fade-in 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+	}
+
+	/* 评论标题装饰 */
+	.comment-header {
+		@apply flex items-center gap-3 px-6 py-4 border-b border-[var(--line-divider)];
+		background: linear-gradient(135deg, 
+			var(--card-bg) 0%, 
+			oklch(from var(--card-bg) l c h / 0.8) 100%
+		);
+	}
+
+	.comment-header-icon {
+		@apply w-6 h-6 text-[var(--primary)];
+	}
+
+	.comment-header-title {
+		@apply text-lg font-medium text-[var(--deep-text)];
 	}
 </style>
