@@ -28,12 +28,27 @@ export const musicConfig: MusicConfig = {
  * 根据当前环境选择合适的API基础URL
  */
 function getApiBase(): string {
-	// 如果是HTTPS环境，尝试多种解决方案
-	if (window.location.protocol === "https:") {
-		// 方案1: 尝试使用HTTPS端口（如果服务器支持）
-		// 方案2: 使用公共代理服务
-		// 方案3: 使用JSONP（如果API支持）
-		return "https://111.170.19.241:8002"; // 先尝试HTTPS
+	// 检测是否为HTTPS环境
+	const isHTTPS = window.location.protocol === "https:";
+
+	// 检测是否为移动设备（用于未来扩展）
+	// const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+	if (isHTTPS) {
+		// HTTPS环境下的解决方案
+		console.log("[Music API] HTTPS环境检测到，使用兼容性方案");
+
+		// 方案1: 尝试使用代理服务（推荐）
+		// 可以使用 Vercel Edge Functions 或其他代理服务
+		if (
+			window.location.hostname.includes("vercel.app") ||
+			window.location.hostname.includes("netlify.app")
+		) {
+			return "/api/music-proxy"; // 使用自建代理
+		}
+
+		// 方案2: 使用公共CORS代理（备用方案）
+		return "https://cors-anywhere.herokuapp.com/http://111.170.19.241:8002";
 	}
 
 	// HTTP环境直接使用HTTP

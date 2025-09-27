@@ -12,11 +12,34 @@ export class MusicAPI {
 		this.defaultPlaylistId = musicConfig.defaultPlaylistId;
 		this.pageSize = musicConfig.pageSize;
 
-		// 定义备用端点，优先使用新API
-		this.fallbackEndpoints = [
+		// 定义备用端点，根据环境选择合适的方案
+		this.fallbackEndpoints = this.getOptimalEndpoints();
+	}
+
+	/**
+	 * 根据当前环境获取最优的API端点列表
+	 */
+	private getOptimalEndpoints(): string[] {
+		const isHTTPS =
+			typeof window !== "undefined" && window.location.protocol === "https:";
+		// const isMobile = typeof window !== 'undefined' && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+		if (isHTTPS) {
+			console.log("[Music API] HTTPS环境，使用兼容性端点");
+			return [
+				// 方案1: 自建代理（如果可用）
+				"/api/music-proxy",
+				// 方案2: 公共CORS代理
+				"https://cors-anywhere.herokuapp.com/http://111.170.19.241:8002",
+				// 方案3: 尝试直接HTTPS（可能失败）
+				"https://111.170.19.241:8002",
+			];
+		}
+
+		// HTTP环境使用原始端点
+		return [
 			"http://111.170.19.241:8002", // 新API HTTP版本（优先）
-			"https://111.170.19.241:8002", // 新API HTTPS版本
-			// 减少备用端点数量，避免过多重试
+			"https://111.170.19.241:8002", // 新API HTTPS版本（备用）
 		];
 	}
 
@@ -307,6 +330,7 @@ export class MusicAPI {
 			errorMessage.includes("mixed content") ||
 			errorMessage.includes("blocked") ||
 			errorMessage.includes("cors") ||
+			errorMessage.includes("connection_reset") ||
 			(typeof window !== "undefined" &&
 				window.location.protocol === "https:" &&
 				errorMessage.includes("fetch"))
@@ -324,7 +348,31 @@ export class MusicAPI {
 		cookiesJson?: string,
 		_musicU?: string,
 	): Promise<PlaylistResponse | null> {
-		// 如果原端点是HTTP，尝试使用公共代理服务
+		// 优先尝试自建代理API
+		try {
+			const proxyUrl = `/api/music-proxy?playlist_id=${playlistId}&page=${page}&page_size=${pageSize}`;
+			console.log(`[Music API] 尝试自建代理: ${proxyUrl}`);
+
+			const response = await fetch(proxyUrl, {
+				method: "GET",
+				headers: {
+					Accept: "application/json",
+					"Content-Type": "application/json",
+				},
+			});
+
+			if (response.ok) {
+				const data = await response.json();
+				console.log(
+					`[Music API] 自建代理成功，获取到 ${data.songs?.length || 0} 首歌曲`,
+				);
+				return data as PlaylistResponse;
+			}
+		} catch (error) {
+			console.error("[Music API] 自建代理失败:", error);
+		}
+
+		// 如果自建代理失败，尝试公共代理服务
 		if (endpoint.startsWith("http://")) {
 			const proxyServices = [
 				"https://api.allorigins.win/raw?url=",
