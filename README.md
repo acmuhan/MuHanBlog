@@ -30,6 +30,7 @@ A static blog template built with [Astro](https://astro.build).
 - [x] [Markdown extended features](https://github.com/saicaca/fuwari?tab=readme-ov-file#-markdown-extended-syntax)
 - [x] Table of contents
 - [x] RSS feed
+- [x] Comment system with [Giscus](https://giscus.app) (GitHub Discussions based)
 
 ## 🚀 Getting Started
 
@@ -47,7 +48,8 @@ A static blog template built with [Astro](https://astro.build).
     - Install [pnpm](https://pnpm.io) `npm install -g pnpm` if you haven't.
 3. Edit the config file `src/config.ts` to customize your blog.
 4. Run `pnpm new-post <filename>` to create a new post and edit it in `src/content/posts/`.
-5. Deploy your blog to Vercel, Netlify, GitHub Pages, etc. following [the guides](https://docs.astro.build/en/guides/deploy/). You need to edit the site configuration in `astro.config.mjs` before deployment.
+5. (Optional) Set up Giscus comment system by following the [setup guide](./GISCUS_SETUP.md).
+6. Deploy your blog to Vercel, Netlify, GitHub Pages, etc. following [the guides](https://docs.astro.build/en/guides/deploy/). You need to edit the site configuration in `astro.config.mjs` before deployment.
 
 ## 📝 Frontmatter of Posts
 

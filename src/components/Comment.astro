@@ -1,0 +1,134 @@
+---
+import { siteConfig } from "../config";
+
+interface Props {
+	class?: string;
+	style?: string;
+}
+
+const { class: className, style } = Astro.props;
+
+// 检查是否启用了Giscus评论系统
+const giscusConfig = siteConfig.comment?.giscus;
+const isGiscusEnabled =
+	giscusConfig?.repo && giscusConfig?.repoId && giscusConfig?.categoryId;
+---
+
+{isGiscusEnabled && (
+	<div class:list={["giscus-container", className]} style={style}>
+		<div class="giscus-wrapper">
+			<!-- Giscus评论区域 -->
+			<div class="giscus"></div>
+		</div>
+		
+		<!-- Giscus脚本 -->
+		<script 
+			src="https://giscus.app/client.js"
+			data-repo={giscusConfig.repo}
+			data-repo-id={giscusConfig.repoId}
+			data-category={giscusConfig.category}
+			data-category-id={giscusConfig.categoryId}
+			data-mapping={giscusConfig.mapping || "pathname"}
+			data-strict={giscusConfig.strict ? "1" : "0"}
+			data-reactions-enabled={giscusConfig.reactionsEnabled ? "1" : "0"}
+			data-emit-metadata={giscusConfig.emitMetadata ? "1" : "0"}
+			data-input-position={giscusConfig.inputPosition || "bottom"}
+			data-theme={giscusConfig.theme || "preferred_color_scheme"}
+			data-lang={giscusConfig.lang || "zh-CN"}
+			data-loading={giscusConfig.loading || "lazy"}
+			crossorigin="anonymous"
+			async>
+		</script>
+
+		<!-- 主题切换支持脚本 -->
+		<script is:inline>
+			// 监听主题变化，动态更新Giscus主题
+			function updateGiscusTheme() {
+				const giscusFrame = document.querySelector('iframe.giscus-frame');
+				if (giscusFrame) {
+					const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+					const theme = isDark ? 'dark' : 'light';
+					
+					// 发送主题更新消息到Giscus iframe
+					giscusFrame.contentWindow?.postMessage(
+						{ giscus: { setConfig: { theme } } },
+						'https://giscus.app'
+					);
+				}
+			}
+
+			// 监听主题变化
+			const observer = new MutationObserver((mutations) => {
+				mutations.forEach((mutation) => {
+					if (mutation.type === 'attributes' && mutation.attributeName === 'data-theme') {
+						updateGiscusTheme();
+					}
+				});
+			});
+
+			// 开始观察主题变化
+			observer.observe(document.documentElement, {
+				attributes: true,
+				attributeFilter: ['data-theme']
+			});
+
+			// 页面加载完成后初始化主题
+			document.addEventListener('DOMContentLoaded', () => {
+				setTimeout(updateGiscusTheme, 1000);
+			});
+		</script>
+	</div>
+)}
+
+{!isGiscusEnabled && (
+	<div class:list={["comment-placeholder", className]} style={style}>
+		<div class="text-center py-8 text-black/50 dark:text-white/50">
+			<p class="mb-2">💬 评论系统未配置</p>
+			<p class="text-sm">请在配置文件中设置Giscus参数以启用评论功能</p>
+		</div>
+	</div>
+)}
+
+<style>
+	.giscus-container {
+		@apply w-full mt-8 mb-4;
+	}
+
+	.giscus-wrapper {
+		@apply rounded-xl overflow-hidden;
+		background: var(--card-bg);
+		border: 1px solid var(--line-divider);
+	}
+
+	.comment-placeholder {
+		@apply w-full mt-8 mb-4 rounded-xl;
+		background: var(--card-bg);
+		border: 1px solid var(--line-divider);
+	}
+
+	/* Giscus样式调整 */
+	:global(.giscus) {
+		@apply w-full;
+	}
+
+	:global(.giscus-frame) {
+		@apply w-full border-0;
+		min-height: 200px;
+	}
+
+	/* 响应式设计 */
+	@media (max-width: 768px) {
+		.giscus-container {
+			@apply mx-0;
+		}
+	}
+
+	/* 深色模式适配 */
+	:global([data-theme="dark"]) .giscus-wrapper {
+		border-color: rgba(255, 255, 255, 0.1);
+	}
+
+	:global([data-theme="light"]) .giscus-wrapper {
+		border-color: rgba(0, 0, 0, 0.1);
+	}
+</style>

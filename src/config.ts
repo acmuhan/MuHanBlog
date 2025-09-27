@@ -48,6 +48,24 @@ export const siteConfig: SiteConfig = {
 			src: "https://cloud.umami.is/script.js",
 		},
 	},
+	// Comment system configuration
+	comment: {
+		// Giscus comment system - 基于 GitHub Discussions
+		giscus: {
+			repo: "acmuhan/muhanblog-comments", // GitHub 评论仓库
+			repoId: "R_kgDOP3tCbw", // 仓库ID
+			category: "Announcements", // 讨论分类
+			categoryId: "DIC_kwDOP3tCb84Cv8RL", // 分类ID
+			mapping: "pathname", // 根据页面路径映射评论
+			strict: false, // 不使用严格标题匹配
+			reactionsEnabled: true, // 启用表情反应
+			emitMetadata: false, // 不发送元数据
+			inputPosition: "bottom", // 评论输入框在底部
+			theme: "preferred_color_scheme", // 自动适应明暗主题
+			lang: "zh-CN", // 中文界面
+			loading: "lazy", // 懒加载
+		},
+	},
 };
 
 export const navBarConfig: NavBarConfig = {

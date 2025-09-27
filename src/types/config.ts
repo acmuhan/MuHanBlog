@@ -47,6 +47,34 @@ export type SiteConfig = {
 			src?: string; // Optional script src, default to public Umami cloud
 		};
 	};
+
+	// Optional comment system configuration
+	comment?: {
+		// Giscus comment system configuration
+		giscus?: {
+			repo: string; // GitHub repository in format "owner/repo"
+			repoId: string; // GitHub repository ID
+			category: string; // Discussion category name
+			categoryId: string; // Discussion category ID
+			mapping?: "pathname" | "url" | "title" | "og:title"; // How to map pages to discussions
+			strict?: boolean; // Use strict title matching
+			reactionsEnabled?: boolean; // Enable reactions
+			emitMetadata?: boolean; // Emit metadata
+			inputPosition?: "top" | "bottom"; // Comment input position
+			theme?:
+				| "light"
+				| "dark"
+				| "preferred_color_scheme"
+				| "transparent_dark"
+				| "noborder_light"
+				| "noborder_dark"
+				| "noborder_gray"
+				| "cobalt"
+				| "purple_dark"; // Theme
+			lang?: string; // Language code
+			loading?: "lazy" | "eager"; // Loading strategy
+		};
+	};
 };
 
 export type Favicon = {
