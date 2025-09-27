@@ -44,6 +44,11 @@ export const GET: APIRoute = async ({ request }) => {
 		});
 	} catch (error) {
 		console.error("[Music Proxy] 代理请求失败:", error);
+		console.error("[Music Proxy] 错误详情:", {
+			message: error instanceof Error ? error.message : String(error),
+			targetUrl,
+			timestamp: new Date().toISOString(),
+		});
 
 		// 返回模拟数据作为降级方案
 		const mockData = {

@@ -295,7 +295,12 @@ export class MusicAPI {
 		const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
 
 		try {
-			const response = await fetch(`${endpoint}/playlist?${params}`, {
+			// 对于代理API，不需要添加/playlist路径
+			const url = endpoint.includes("/api/music-proxy")
+				? `${endpoint}?${params}`
+				: `${endpoint}/playlist?${params}`;
+
+			const response = await fetch(url, {
 				method: "GET",
 				headers,
 				signal: controller.signal,
