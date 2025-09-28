@@ -23,7 +23,10 @@ async function fetchOneImageUrl(): Promise<string | null> {
 			/https?:\/\/[^\s"']+\.(?:png|jpe?g|webp|gif)/i,
 		);
 		return match ? match[0] : null;
-	} catch {
+	} catch (error) {
+		if (import.meta.env.DEV) {
+			console.warn("轮播图API请求失败:", error);
+		}
 		return null;
 	}
 }
@@ -52,26 +55,20 @@ function buildDirectUrls(n: number): string[] {
 }
 
 onMount(async () => {
+	// 尝试获取远程图片
 	imageUrls = await fetchThreeDistinct();
+
+	// 如果API失败，使用直接URL方式
 	if (imageUrls.length === 0) {
 		imageUrls = buildDirectUrls(3);
 	}
+
 	// start rotation only if we have at least 1
 	if (imageUrls.length > 0) {
 		activeIndex = 0;
-		// rotate exactly 3 images (or the size we got), then stop
-		// show each image ~3 seconds
-		let switches = Math.max(1, imageUrls.length) - 1; // number of transitions
+		// 持续轮播，不限制切换次数
 		intervalId = window.setInterval(() => {
-			if (switches <= 0) {
-				if (intervalId) {
-					clearInterval(intervalId);
-					intervalId = null;
-				}
-				return;
-			}
 			activeIndex = (activeIndex + 1) % imageUrls.length;
-			switches--;
 		}, 3000);
 	}
 });

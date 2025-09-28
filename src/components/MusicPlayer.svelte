@@ -98,9 +98,11 @@ function createShuffledPlaylist() {
 	playerState.shuffledPlaylist = shuffleArray(playerState.fullPlaylist);
 	playerState.shuffleIndex = 0;
 
-	console.log(
-		`创建随机播放列表，歌曲数量: ${playerState.shuffledPlaylist.length}`,
-	);
+	if (import.meta.env.DEV) {
+		console.log(
+			`创建随机播放列表，歌曲数量: ${playerState.shuffledPlaylist.length}`,
+		);
+	}
 }
 
 // 随机排序所有歌曲（每次刷新时调用）
@@ -132,7 +134,9 @@ function shuffleAllSongs() {
 		}
 	}
 
-	console.log(`歌曲随机排序完成，显示${displayCount}首歌曲`);
+	if (import.meta.env.DEV) {
+		console.log(`歌曲随机排序完成，显示${displayCount}首歌曲`);
+	}
 }
 
 // 获取当前播放的歌曲（根据播放模式）
@@ -187,7 +191,9 @@ function reshuffleSongs() {
 async function loadFullPlaylist() {
 	try {
 		playerState.isLoading = true;
-		console.log("开始加载所有歌曲数据...");
+		if (import.meta.env.DEV) {
+			console.log("开始加载所有歌曲数据...");
+		}
 
 		// 获取所有歌曲数据
 		const allSongsData = await musicAPI.getAllSongs(
@@ -230,9 +236,11 @@ async function loadFullPlaylist() {
 		}
 
 		playerState.isLoading = false;
-		console.log(
-			`所有歌曲加载完成，总歌曲数: ${playerState.fullPlaylist.length}，显示: ${playerState.playlist.length}首`,
-		);
+		if (import.meta.env.DEV) {
+			console.log(
+				`所有歌曲加载完成，总歌曲数: ${playerState.fullPlaylist.length}，显示: ${playerState.playlist.length}首`,
+			);
+		}
 	} catch (error) {
 		console.error("加载所有歌曲失败:", error);
 		playerState.isLoading = false;
@@ -655,10 +663,19 @@ async function safePlay(reason = "用户操作") {
 		// 尝试播放
 		await audioElement.play();
 		playerState.isPlaying = true;
-		console.log(`播放成功 (${reason}):`, playerState.currentSong.name);
+		if (import.meta.env.DEV) {
+			console.log(`播放成功 (${reason}):`, playerState.currentSong.name);
+		}
 		return true;
 	} catch (error) {
-		console.log(`播放失败 (${reason}):`, error);
+		if (import.meta.env.DEV) {
+			console.log(`播放失败 (${reason}):`, error);
+		} else {
+			console.error(
+				"播放失败:",
+				error instanceof Error ? error.message : String(error),
+			);
+		}
 		playerState.isPlaying = false;
 		return false;
 	} finally {
@@ -712,15 +729,17 @@ function detectMobile() {
 		isOtherMobileUA ||
 		(isTouchDevice && isSmallScreen);
 
-	console.log("设备检测结果:", {
-		userAgent,
-		detectedMobile,
-		detectedAndroid,
-		detectedIOS,
-		isTouchDevice,
-		isSmallScreen,
-		windowSize: { width: window.innerWidth, height: window.innerHeight },
-	});
+	if (import.meta.env.DEV) {
+		console.log("设备检测结果:", {
+			userAgent,
+			detectedMobile,
+			detectedAndroid,
+			detectedIOS,
+			isTouchDevice,
+			isSmallScreen,
+			windowSize: { width: window.innerWidth, height: window.innerHeight },
+		});
+	}
 
 	return {
 		isMobile: detectedMobile,
@@ -875,13 +894,15 @@ function toggleExpanded() {
 		startAutoCollapseTimer();
 	}
 
-	console.log("切换展开状态:", {
-		wasExpanded,
-		nowExpanded: playerState.isExpanded,
-		isMinimizedToEdge,
-		isAutoCollapsed,
-		position: playerPosition,
-	});
+	if (import.meta.env.DEV) {
+		console.log("切换展开状态:", {
+			wasExpanded,
+			nowExpanded: playerState.isExpanded,
+			isMinimizedToEdge,
+			isAutoCollapsed,
+			position: playerPosition,
+		});
+	}
 }
 
 // 展开时智能调整位置
@@ -933,11 +954,13 @@ function adjustPositionForExpanded() {
 	playerPosition.x = newX;
 	playerPosition.y = newY;
 
-	console.log("展开播放器，智能调整位置:", {
-		原位置: { x: playerPosition.x, y: playerPosition.y },
-		新位置: { x: newX, y: newY },
-		屏幕尺寸: { width: window.innerWidth, height: window.innerHeight },
-	});
+	if (import.meta.env.DEV) {
+		console.log("展开播放器，智能调整位置:", {
+			原位置: { x: playerPosition.x, y: playerPosition.y },
+			新位置: { x: newX, y: newY },
+			屏幕尺寸: { width: window.innerWidth, height: window.innerHeight },
+		});
+	}
 }
 
 // 确保播放器在可见区域内
@@ -1046,7 +1069,9 @@ function stopBoundaryCheck() {
 
 // 快速启动播放器（使用模拟数据）
 function quickStart() {
-	console.log("快速启动播放器...");
+	if (import.meta.env.DEV) {
+		console.log("快速启动播放器...");
+	}
 
 	// 使用模拟数据快速显示播放器
 	const mockSongs = [
@@ -1055,7 +1080,8 @@ function quickStart() {
 			name: "加载中...",
 			artist: "正在获取歌单",
 			url: "",
-			pic_url: "https://via.placeholder.com/300x300/4f46e5/ffffff?text=Loading",
+			pic_url:
+				"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjNGY0NmU1Ii8+Cjx0ZXh0IHg9IjE1MCIgeT0iMTUwIiBmb250LWZhbWlseT0iQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iMC4zZW0iPkxvYWRpbmcuLi48L3RleHQ+Cjwvc3ZnPg==",
 		},
 	];
 
@@ -1068,7 +1094,9 @@ function quickStart() {
 	// 后台异步加载真实数据
 	loadFullPlaylist()
 		.then(() => {
-			console.log("真实歌单数据加载完成");
+			if (import.meta.env.DEV) {
+				console.log("真实歌单数据加载完成");
+			}
 		})
 		.catch((error) => {
 			console.error("歌单加载失败:", error);

@@ -35,7 +35,9 @@ export class MusicAPI {
 		const allSongs: Song[] = [];
 		let totalPages = 1;
 
-		console.log("开始随机获取3页歌曲数据...");
+		if (import.meta.env.DEV) {
+			console.log("开始随机获取3页歌曲数据...");
+		}
 
 		// 先获取第一页了解总页数
 		try {
@@ -50,9 +52,11 @@ export class MusicAPI {
 			if (firstPageResult?.songs) {
 				allSongs.push(...firstPageResult.songs);
 				totalPages = firstPageResult.pagination.total_pages;
-				console.log(
-					`第1页获取成功，总页数: ${totalPages}，歌曲数量: ${firstPageResult.songs.length}`,
-				);
+				if (import.meta.env.DEV) {
+					console.log(
+						`第1页获取成功，总页数: ${totalPages}，歌曲数量: ${firstPageResult.songs.length}`,
+					);
+				}
 			}
 		} catch (error) {
 			console.error("获取第一页失败:", error);
@@ -71,7 +75,9 @@ export class MusicAPI {
 			const shuffledPages = availablePages.sort(() => Math.random() - 0.5);
 			const selectedPages = shuffledPages.slice(0, 2);
 
-			console.log(`随机选择页面: ${selectedPages.join(", ")}`);
+			if (import.meta.env.DEV) {
+				console.log(`随机选择页面: ${selectedPages.join(", ")}`);
+			}
 
 			// 顺序获取选中的页面
 			for (const page of selectedPages) {
@@ -85,9 +91,11 @@ export class MusicAPI {
 					);
 					if (result?.songs) {
 						allSongs.push(...result.songs);
-						console.log(
-							`第${page}页获取成功，歌曲数量: ${result.songs.length}`,
-						);
+						if (import.meta.env.DEV) {
+							console.log(
+								`第${page}页获取成功，歌曲数量: ${result.songs.length}`,
+							);
+						}
 					}
 
 					// 减少延迟提高加载速度
@@ -99,7 +107,9 @@ export class MusicAPI {
 			}
 		}
 
-		console.log(`随机3页歌曲获取完成，总歌曲数量: ${allSongs.length}`);
+		if (import.meta.env.DEV) {
+			console.log(`随机3页歌曲获取完成，总歌曲数量: ${allSongs.length}`);
+		}
 
 		return {
 			songs: allSongs,
@@ -180,7 +190,9 @@ export class MusicAPI {
 	): Promise<PlaylistResponse> {
 		// 尝试所有可用的端点
 		for (const endpoint of this.fallbackEndpoints) {
-			console.log(`尝试端点: ${endpoint}`);
+			if (import.meta.env.DEV) {
+				console.log(`尝试端点: ${endpoint}`);
+			}
 
 			// 减少重试次数，避免过多请求
 			const maxAttempts = Math.min(retries, 2); // 最多重试2次
@@ -196,7 +208,9 @@ export class MusicAPI {
 					);
 
 					if (result) {
-						console.log(`成功从端点获取数据: ${endpoint}`);
+						if (import.meta.env.DEV) {
+							console.log(`成功从端点获取数据: ${endpoint}`);
+						}
 						return result;
 					}
 				} catch (error) {
@@ -294,7 +308,7 @@ export class MusicAPI {
 		}
 
 		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
+		const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时
 
 		try {
 			const response = await fetch(url, {
@@ -320,7 +334,7 @@ export class MusicAPI {
 						code: 200,
 						playlist_id: playlistId,
 						playlist_name: "网易云歌单",
-						songs: data.songs.map((song: Record<string, any>) => ({
+						songs: data.songs.map((song: Record<string, unknown>) => ({
 							id: song.id,
 							name: song.name,
 							artist: song.ar?.[0]?.name || "未知艺术家",
