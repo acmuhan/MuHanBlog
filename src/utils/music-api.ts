@@ -12,13 +12,12 @@ export class MusicAPI {
 		this.defaultPlaylistId = musicConfig.defaultPlaylistId;
 		this.pageSize = musicConfig.pageSize;
 
-		// 定义备用端点，优先使用本地代理解决CORS问题
+		// 定义备用端点，优先使用新的HTTPS端点
 		this.fallbackEndpoints = [
-			"/api/music-proxy", // 本地EdgeOne Functions代理（首选）
-			"https://netease-cloud-music-api-lovat-ten.vercel.app", // 支持CORS的网易云API
-			"https://music-api-steel-nine.vercel.app", // 备用Vercel API 1
-			"https://netease-music-api-xi.vercel.app", // 备用Vercel API 2
-			"https://music-api-kappa-six.vercel.app", // 备用Vercel API 3
+			"https://111.170.19.241:8443", // 新的HTTPS端点（优先）
+			"https://music-api.heheda.top", // 备用API
+			"https://netease-cloud-music-api-psi-six.vercel.app", // Vercel部署的网易云API
+			"http://111.170.19.241:8002", // 原API HTTP版本（备用）
 		];
 	}
 
@@ -255,31 +254,28 @@ export class MusicAPI {
 		let url: string;
 		let params: URLSearchParams;
 
-		if (endpoint.includes("/api/music-proxy")) {
-			// 本地代理API格式
-			params = new URLSearchParams({
-				id: playlistId.toString(),
-				limit: Math.min(pageSize, 50).toString(),
-				offset: ((page - 1) * pageSize).toString(),
-			});
-			url = `${endpoint}?${params}`;
-		} else if (
-			endpoint.includes("vercel.app") ||
-			endpoint.includes("heheda.top")
-		) {
+		if (endpoint.includes("vercel.app") || endpoint.includes("heheda.top")) {
 			// 标准网易云API格式
 			params = new URLSearchParams({
 				id: playlistId.toString(),
-				limit: Math.min(pageSize, 50).toString(),
+				limit: Math.min(pageSize, 100).toString(),
 				offset: ((page - 1) * pageSize).toString(),
 			});
 			url = `${endpoint}/playlist/track/all?${params}`;
-		} else {
-			// 原有API格式
+		} else if (endpoint.includes("111.170.19.241")) {
+			// 自定义API格式（支持新的HTTPS端点）
 			params = new URLSearchParams({
 				playlist_id: playlistId.toString(),
 				page: page.toString(),
-				page_size: Math.min(pageSize, 50).toString(),
+				page_size: Math.min(pageSize, 100).toString(),
+			});
+			url = `${endpoint}/playlist?${params}`;
+		} else {
+			// 默认API格式
+			params = new URLSearchParams({
+				playlist_id: playlistId.toString(),
+				page: page.toString(),
+				page_size: Math.min(pageSize, 100).toString(),
 			});
 			url = `${endpoint}/playlist?${params}`;
 		}
@@ -290,8 +286,6 @@ export class MusicAPI {
 
 		const headers: Record<string, string> = {
 			Accept: "application/json",
-			"User-Agent":
-				"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
 			// 移除Content-Type避免CORS预检请求
 		};
 
@@ -300,7 +294,7 @@ export class MusicAPI {
 		}
 
 		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时，生产环境需要更长时间
+		const timeoutId = setTimeout(() => controller.abort(), 8000); // 8秒超时
 
 		try {
 			const response = await fetch(url, {
@@ -319,12 +313,8 @@ export class MusicAPI {
 			const data = await response.json();
 
 			// 处理不同API的响应格式
-			if (
-				endpoint.includes("/api/music-proxy") ||
-				endpoint.includes("vercel.app") ||
-				endpoint.includes("heheda.top")
-			) {
-				// 标准网易云API响应格式转换（包括本地代理）
+			if (endpoint.includes("vercel.app") || endpoint.includes("heheda.top")) {
+				// 标准网易云API响应格式转换
 				if (data.code === 200 && data.songs) {
 					const convertedData: PlaylistResponse = {
 						code: 200,
@@ -348,8 +338,13 @@ export class MusicAPI {
 					};
 					return convertedData;
 				}
+			} else if (endpoint.includes("111.170.19.241")) {
+				// 自定义API格式（支持新的HTTPS端点）
+				if (data.code === 200) {
+					return data as PlaylistResponse;
+				}
 			} else {
-				// 原有API格式
+				// 默认API格式
 				if (data.code === 200) {
 					return data as PlaylistResponse;
 				}
