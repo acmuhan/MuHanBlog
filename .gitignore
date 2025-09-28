@@ -30,3 +30,4 @@ yarn.lock
 .idea
 *.iml
 MOBILE_COMPATIBILITY.md
+.playwright-mcp/all-features-working.png

@@ -551,10 +551,18 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 // 拖拽功能
+let dragStartPosition = { x: 0, y: 0 };
+let hasDraggedEnough = false;
+const DRAG_THRESHOLD = 5; // 像素阈值，超过此距离才认为是拖拽
+
 function handleDragStart(event: MouseEvent) {
 	if (typeof window === "undefined") return;
 
-	isDragging = true;
+	// 记录初始位置
+	dragStartPosition.x = event.clientX;
+	dragStartPosition.y = event.clientY;
+	hasDraggedEnough = false;
+
 	const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
 
 	// 计算鼠标相对于播放器的偏移量
@@ -567,7 +575,22 @@ function handleDragStart(event: MouseEvent) {
 }
 
 function handleDragMove(event: MouseEvent) {
-	if (!isDragging || typeof window === "undefined") return;
+	if (typeof window === "undefined") return;
+
+	// 检查是否移动了足够的距离才开始拖拽
+	if (!hasDraggedEnough) {
+		const deltaX = Math.abs(event.clientX - dragStartPosition.x);
+		const deltaY = Math.abs(event.clientY - dragStartPosition.y);
+
+		if (deltaX > DRAG_THRESHOLD || deltaY > DRAG_THRESHOLD) {
+			hasDraggedEnough = true;
+			isDragging = true;
+		} else {
+			return; // 还没有移动足够的距离，不开始拖拽
+		}
+	}
+
+	if (!isDragging) return;
 
 	// 获取播放器实际尺寸
 	const playerWidth = playerState.isExpanded ? 360 : 280;
@@ -591,16 +614,22 @@ function handleDragMove(event: MouseEvent) {
 }
 
 function handleDragEnd() {
+	const wasActuallyDragging = isDragging && hasDraggedEnough;
+
 	isDragging = false;
+	hasDraggedEnough = false;
+
 	if (typeof document === "undefined") return;
 
 	document.removeEventListener("mousemove", handleDragMove);
 	document.removeEventListener("mouseup", handleDragEnd);
 
-	// 拖拽结束后检查边界并回弹
-	setTimeout(() => {
-		ensurePlayerInSafeBounds("拖拽结束");
-	}, 100);
+	// 只有在实际拖拽后才检查边界并回弹
+	if (wasActuallyDragging) {
+		setTimeout(() => {
+			ensurePlayerInSafeBounds("拖拽结束");
+		}, 100);
+	}
 }
 
 // 安全播放函数，防止多个播放操作同时进行
@@ -1151,13 +1180,19 @@ onDestroy(() => {
 		<!-- 最小化状态 -->
 		{#if !playerState.isExpanded}
 		<div 
-			class="mini-player flex items-center gap-3 p-4 cursor-move"
-			on:mousedown={handleDragStart}
-			role="button"
-			tabindex="0"
-			aria-label="拖拽音乐播放器"
+			class="mini-player flex items-center gap-3 p-4"
 			transition:slide={{ duration: 400, axis: 'y' }}
 		>
+			<!-- 拖拽手柄区域 -->
+			<div 
+				class="drag-handle cursor-move flex-shrink-0 w-2 h-8 flex items-center justify-center opacity-50 hover:opacity-100 transition-opacity"
+				on:mousedown={handleDragStart}
+				role="button"
+				tabindex="0"
+				aria-label="拖拽音乐播放器"
+			>
+				<div class="w-1 h-6 bg-[var(--btn-content)] rounded-full opacity-60"></div>
+			</div>
 			<!-- 专辑封面 -->
 			<div class="album-cover relative overflow-hidden rounded-lg">
 				{#if playerState.currentSong?.pic_url}
